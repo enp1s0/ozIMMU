@@ -1,0 +1,3 @@
+[submodule "src/cutf"]
+	path = src/cutf
+	url = https://github.com/enp1s0/cutf
