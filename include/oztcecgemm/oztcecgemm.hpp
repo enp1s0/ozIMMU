@@ -1,6 +1,7 @@
 #pragma once
 #include <cstdint>
 
+namespace mtk {
 namespace oztcecgemm {
 struct handle_t;
 enum operation_t {
@@ -13,6 +14,7 @@ enum compute_mode_t {
 
 int create(handle_t& handle);
 int destroy(handle_t& handle);
+void set_cuda_stream(handle_t& handle, const cudaStream_t cuda_stream);
 
 template <class AB_T, class C_T>
 int gemm(
@@ -30,3 +32,4 @@ int gemm(
 		const oztcecgemm::compute_mode_t compute_mode
 		);
 } // namespace oztcecgemm
+} // namespace mtk
