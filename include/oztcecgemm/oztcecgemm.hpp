@@ -10,6 +10,7 @@ enum operation_t {
 };
 
 enum compute_mode_t {
+	std_split_3
 };
 
 int create(handle_t& handle);
