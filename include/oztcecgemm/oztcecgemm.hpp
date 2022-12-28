@@ -1,5 +1,6 @@
 #pragma once
-#include <cstdint>
+#include <vector>
+#include <tuple>
 
 namespace mtk {
 namespace oztcecgemm {
@@ -10,18 +11,23 @@ enum operation_t {
 };
 
 enum compute_mode_t {
-	std_split_3
+	fp32_split_3
 };
 
-int create(handle_t& handle);
-int destroy(handle_t& handle);
-void set_cuda_stream(handle_t& handle, const cudaStream_t cuda_stream);
+int create (mtk::oztcecgemm::handle_t& handle);
+int destroy(mtk::oztcecgemm::handle_t& handle);
+void set_cuda_stream(mtk::oztcecgemm::handle_t& handle, const cudaStream_t cuda_stream);
+
+void reallocate_working_memory(
+		mtk::oztcecgemm::handle_t& handle,
+		const std::vector<std::tuple<std::size_t, std::size_t, std::size_t, mtk::oztcecgemm::compute_mode_t>> gemm_list
+		);
 
 template <class AB_T, class C_T>
 int gemm(
-		const oztcecgemm::handle_t& handle,
-		const oztcecgemm::operation_t op_A,
-		const oztcecgemm::operation_t op_B,
+		const mtk::oztcecgemm::handle_t& handle,
+		const mtk::oztcecgemm::operation_t op_A,
+		const mtk::oztcecgemm::operation_t op_B,
 		const std::size_t m,
 		const std::size_t n,
 		const std::size_t k,
@@ -30,7 +36,7 @@ int gemm(
 		const AB_T* const b_ptr, const std::size_t ldb,
 		const C_T beta,
 		C_T* const c_ptr, std::size_t ldc,
-		const oztcecgemm::compute_mode_t compute_mode
+		const mtk::oztcecgemm::compute_mode_t compute_mode
 		);
 } // namespace oztcecgemm
 } // namespace mtk
