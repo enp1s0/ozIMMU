@@ -77,7 +77,10 @@ void mtk::oztcecgemm::reallocate_working_memory(
 		const auto working_memory_A = calculate_working_memory_size(m, k, mode, detail::matrix_A);
 		const auto working_memory_B = calculate_working_memory_size(k, n, mode, detail::matrix_B);
 
-		max_working_memory_size = std::max(max_working_memory_size, working_memory_A + working_memory_B);
+		max_working_memory_size = std::max(
+				max_working_memory_size,
+				working_memory_A + working_memory_B
+				);
 	}
 
 	if (max_working_memory_size > handle.current_working_memory_size) {
