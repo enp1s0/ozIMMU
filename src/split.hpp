@@ -5,18 +5,17 @@
 
 namespace mtk {
 namespace oztcecgemm {
-template <class INPUT_T, class OUTPUT_1_T, class OUTPUT_2_T>
 void split_2(
-		OUTPUT_1_T* const out_1_ptr,
-		OUTPUT_2_T* const out_2_ptr,
+		void* const out_1_ptr, const mtk::oztcecgemm::detail::data_t type_1,
+		void* const out_2_ptr, const mtk::oztcecgemm::detail::data_t type_2,
 		const std::size_t m,
 		const std::size_t n,
-		const INPUT_T* const in_ptr,
+		const void* const in_ptr, const mtk::oztcecgemm::detail::data_t type_in,
 		const std::size_t ld,
 		const mtk::oztcecgemm::operation_t op,
 		const mtk::oztcecgemm::detail::matrix_t matrix,
 		// alpha = ceil((24 + log2(n)) / 2)
-		const INPUT_T two_to_alpha,
+		const void* two_to_alpha,
 		const cudaStream_t cuda_stream
 		);
 
