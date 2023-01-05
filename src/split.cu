@@ -3,6 +3,7 @@
 #include <cutf/math.hpp>
 #include "config.hpp"
 #include "split.hpp"
+#include "utils.hpp"
 
 namespace {
 template <class T>
@@ -163,7 +164,7 @@ void mtk::oztcecgemm::split_2(
 					cuda_stream
 					);
 		} else {
-			// Not implemented
+			OZTCECGEM_NOT_IMPLEMENTED;
 		}
 	} else {
 		if (type_in == mtk::oztcecgemm::detail::fp32) {
@@ -178,7 +179,7 @@ void mtk::oztcecgemm::split_2(
 					cuda_stream
 					);
 		} else {
-			// Not implemented
+			OZTCECGEM_NOT_IMPLEMENTED;
 		}
 	}
 }
