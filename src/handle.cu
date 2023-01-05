@@ -94,3 +94,15 @@ void mtk::oztcecgemm::reallocate_working_memory(
 		cudaMalloc(&(handle.working_memory_ptr), handle.current_working_memory_size);
 	}
 }
+
+std::string mtk::oztcecgemm::get_compute_mode_name_str(
+		const mtk::oztcecgemm::compute_mode_t mode
+		) {
+	switch (mode) {
+	case mtk::oztcecgemm::fp32_split_3:
+		return "fp32_split_3";
+	default:
+		break;
+	}
+	return "Unknown";
+}

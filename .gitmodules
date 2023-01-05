@@ -1,3 +1,9 @@
 [submodule "src/cutf"]
 	path = src/cutf
 	url = https://github.com/enp1s0/cutf
+[submodule "src/shgemm"]
+	path = src/shgemm
+	url = https://github.com/enp1s0/shgemm
+[submodule "test/mateval"]
+	path = test/mateval
+	url = https://github.com/enp1s0/mateval

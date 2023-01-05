@@ -1,6 +1,7 @@
 #pragma once
 #include <vector>
 #include <tuple>
+#include <string>
 
 namespace mtk {
 namespace oztcecgemm {
@@ -37,6 +38,10 @@ int gemm(
 		const C_T beta,
 		C_T* const c_ptr, std::size_t ldc,
 		const mtk::oztcecgemm::compute_mode_t compute_mode
+		);
+
+std::string get_compute_mode_name_str(
+		const mtk::oztcecgemm::compute_mode_t mode
 		);
 } // namespace oztcecgemm
 } // namespace mtk
