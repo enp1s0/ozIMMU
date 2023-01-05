@@ -34,6 +34,9 @@ void mtk::oztcecgemm::set_cuda_stream(
 
 	// Set cuda stream to SHGEMM handler
 	mtk::shgemm::set_cuda_stream(handle.shgemm_handle, cuda_stream);
+
+	// Set oztcecgemm handler
+	handle.cuda_stream = cuda_stream;
 }
 
 // working memory size calculation
