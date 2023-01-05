@@ -22,6 +22,11 @@ std::size_t get_data_size_in_byte(
 		const data_t d
 		);
 
+template <class T>
+inline data_t get_data_t();
+template <>
+inline data_t get_data_t<float>() {return data_t::fp32;}
+
 struct split_config_t {
 	std::vector<data_t> matrix_a_split_types;
 	std::vector<data_t> matrix_b_split_types;
