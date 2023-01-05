@@ -2,41 +2,44 @@
 #include "config.hpp"
 
 int mtk::oztcecgemm::create(
-		mtk::oztcecgemm::handle_t& handle
+		mtk::oztcecgemm::handle_t *h
 		) {
+	auto handle = (*h = new mtk::oztcecgemm::handle);
 	// Initialize cuBLAS handler
-	CUTF_CHECK_ERROR(cublasCreate(&(handle.cublas_handle)));
+	CUTF_CHECK_ERROR(cublasCreate(&(handle->cublas_handle)));
 
 	// Initialize SHGEMM handler
-	mtk::shgemm::create(handle.shgemm_handle);
+	mtk::shgemm::create(handle->shgemm_handle);
 
 	return 0;
 }
 
 int mtk::oztcecgemm::destroy(
-		mtk::oztcecgemm::handle_t& handle
+		mtk::oztcecgemm::handle_t handle
 		) {
 	// Destroy cuBLAS handler
-	CUTF_CHECK_ERROR(cublasDestroy(handle.cublas_handle));
+	CUTF_CHECK_ERROR(cublasDestroy(handle->cublas_handle));
 
 	// Destroy SHGEMM handler
-	mtk::shgemm::destroy(handle.shgemm_handle);
+	mtk::shgemm::destroy(handle->shgemm_handle);
+
+	delete handle;
 
 	return 0;
 }
 
 void mtk::oztcecgemm::set_cuda_stream(
-		mtk::oztcecgemm::handle_t& handle,
+		mtk::oztcecgemm::handle_t handle,
 		cudaStream_t cuda_stream
 		) {
 	// Set cuda stream to cuBLAS handler
-	CUTF_CHECK_ERROR(cublasSetStream(handle.cublas_handle, cuda_stream));
+	CUTF_CHECK_ERROR(cublasSetStream(handle->cublas_handle, cuda_stream));
 
 	// Set cuda stream to SHGEMM handler
-	mtk::shgemm::set_cuda_stream(handle.shgemm_handle, cuda_stream);
+	mtk::shgemm::set_cuda_stream(handle->shgemm_handle, cuda_stream);
 
 	// Set oztcecgemm handler
-	handle.cuda_stream = cuda_stream;
+	handle->cuda_stream = cuda_stream;
 }
 
 // working memory size calculation
@@ -66,7 +69,7 @@ std::size_t calculate_working_memory_size(
 } // unnamed namespace
 
 void mtk::oztcecgemm::reallocate_working_memory(
-		mtk::oztcecgemm::handle_t& handle,
+		mtk::oztcecgemm::handle_t handle,
 		const std::vector<std::tuple<std::size_t, std::size_t, std::size_t, mtk::oztcecgemm::compute_mode_t>> gemm_list
 		) {
 	std::size_t max_working_memory_size = 0;
@@ -86,12 +89,12 @@ void mtk::oztcecgemm::reallocate_working_memory(
 				);
 	}
 
-	if (max_working_memory_size > handle.current_working_memory_size) {
-		handle.current_working_memory_size = max_working_memory_size;
-		cudaFree(handle.working_memory_ptr);
+	if (max_working_memory_size > handle->current_working_memory_size) {
+		handle->current_working_memory_size = max_working_memory_size;
+		cudaFree(handle->working_memory_ptr);
 
 		// Realloc
-		cudaMalloc(&(handle.working_memory_ptr), handle.current_working_memory_size);
+		cudaMalloc(&(handle->working_memory_ptr), handle->current_working_memory_size);
 	}
 }
 

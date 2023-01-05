@@ -3,7 +3,7 @@
 #include <shgemm/shgemm.hpp>
 #include <cutf/cublas.hpp>
 
-struct mtk::oztcecgemm::handle_t {
+struct mtk::oztcecgemm::handle {
 	// handlers
 	cublasHandle_t cublas_handle;
 	mtk::shgemm::shgemmHandle_t shgemm_handle;
