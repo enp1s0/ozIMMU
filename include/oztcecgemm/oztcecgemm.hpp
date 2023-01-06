@@ -14,6 +14,7 @@ enum operation_t {
 };
 
 enum compute_mode_t {
+	sgemm,
 	fp32_split_3
 };
 
