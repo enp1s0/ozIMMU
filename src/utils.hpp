@@ -9,7 +9,7 @@ inline void print_not_implemented(
 		const std::size_t line,
 		const std::string func
 		) {
-	throw("Not implemented (" + func + " in " + file + ", l." + std::to_string(line) + ")");
+	throw std::runtime_error("Not implemented (" + func + " in " + file + ", l." + std::to_string(line) + ")");
 }
 } // namespace detail
 } // namespace oztcecgemm
