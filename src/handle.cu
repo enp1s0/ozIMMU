@@ -1,5 +1,6 @@
 #include "handle.hpp"
 #include "config.hpp"
+#include "utils.hpp"
 
 int mtk::oztcecgemm::create(
 		mtk::oztcecgemm::handle_t *h
@@ -52,11 +53,11 @@ std::size_t calculate_working_memory_size(
 		) {
 	const auto split_config = mtk::oztcecgemm::detail::get_split_config(compute_mode);
 
-	decltype(split_config.matrix_a_split_types) split_data_types;
+	decltype(split_config.matrix_A_split_types) split_data_types;
 	if (matrix == mtk::oztcecgemm::detail::matrix_A) {
-		split_data_types = split_config.matrix_a_split_types;
+		split_data_types = split_config.matrix_A_split_types;
 	} else {
-		split_data_types = split_config.matrix_b_split_types;
+		split_data_types = split_config.matrix_B_split_types;
 	}
 
 	std::size_t sum_data_type_size = 0;
@@ -82,10 +83,12 @@ void mtk::oztcecgemm::reallocate_working_memory(
 
 		const auto working_memory_A = calculate_working_memory_size(m, k, mode, detail::matrix_A);
 		const auto working_memory_B = calculate_working_memory_size(k, n, mode, detail::matrix_B);
+		const auto working_memory_C_fp32 = m * n * mtk::oztcecgemm::detail::get_data_size_in_byte(detail::fp32);
+		const auto working_memory_C_fp64 = m * n * mtk::oztcecgemm::detail::get_data_size_in_byte(detail::fp64);
 
 		max_working_memory_size = std::max(
 				max_working_memory_size,
-				working_memory_A + working_memory_B
+				working_memory_A + working_memory_B + working_memory_C_fp32 + working_memory_C_fp64
 				);
 	}
 
@@ -104,6 +107,8 @@ std::string mtk::oztcecgemm::get_compute_mode_name_str(
 	switch (mode) {
 	case mtk::oztcecgemm::fp32_split_3:
 		return "fp32_split_3";
+	case mtk::oztcecgemm::sgemm:
+		return "sgemm";
 	default:
 		break;
 	}

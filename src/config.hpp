@@ -57,6 +57,10 @@ split_config_t get_split_config(
 		const mtk::oztcecgemm::compute_mode_t compute_mode
 		);
 
+data_t get_output_type(
+		const mtk::oztcecgemm::compute_mode_t mode
+		);
+
 } // namespace detail
 } // namespace oztcecgemm
 } // namespace mtk

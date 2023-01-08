@@ -64,7 +64,7 @@ void split_AB(
 			op_A,
 			m, k,
 			a_ptr, lda,
-			split_config.matrix_a_split_types,
+			split_config.matrix_A_split_types,
 			mtk::oztcecgemm::detail::matrix_A,
 			&two_to_alpha,
 			handle->cuda_stream
@@ -75,7 +75,7 @@ void split_AB(
 			op_B,
 			k, n,
 			b_ptr, ldb,
-			split_config.matrix_b_split_types,
+			split_config.matrix_B_split_types,
 			mtk::oztcecgemm::detail::matrix_B,
 			&two_to_alpha,
 			handle->cuda_stream
@@ -127,6 +127,107 @@ mtk::shgemm::operation_t to_shgemm_operation_t(
 	return mtk::shgemm::op_n;
 }
 
+__global__ void accumulate_in_fp64_kernel(
+		double* const dp_ptr,
+		const float* sp_ptr,
+		const std::size_t length
+		) {
+	const auto tid = blockIdx.x * blockDim.x + threadIdx.x;
+	if (tid >= length) {
+		return;
+	}
+
+	dp_ptr[tid] += sp_ptr[tid];
+}
+
+void accumulate_in_fp64(
+		double* const dp_ptr,
+		const float* sp_ptr,
+		const std::size_t length,
+		cudaStream_t cuda_stream
+		) {
+	constexpr std::size_t block_size = 256;
+	accumulate_in_fp64_kernel
+		<<<(length + block_size - 1) / block_size, block_size, 0, cuda_stream>>>(
+				dp_ptr,
+				sp_ptr,
+				length
+			);
+}
+
+__global__ void init_fp64_buffer_kernel(
+		double* const dp_ptr,
+		const std::size_t length
+		) {
+	const auto tid = blockIdx.x * blockDim.x + threadIdx.x;
+	if (tid >= length) {
+		return;
+	}
+
+	dp_ptr[tid] = 0;
+}
+
+void init_fp64_buffer(
+		double* const dp_ptr,
+		const std::size_t length,
+		cudaStream_t cuda_stream
+		) {
+	constexpr std::size_t block_size = 256;
+	init_fp64_buffer_kernel
+		<<<(length + block_size - 1) / block_size, block_size, 0, cuda_stream>>>(
+				dp_ptr,
+				length
+			);
+}
+
+template <class Y_T>
+__global__ void axby_kernel(
+		const std::size_t m,
+		const std::size_t n,
+		const double a,
+		const double* const x_ptr,
+		const double b,
+		Y_T* const y_ptr,
+		const std::size_t ldy
+		) {
+	const auto tid = blockIdx.x * blockDim.x + threadIdx.x;
+	if (tid >= m * n) {
+		return;
+	}
+
+	const auto mi = tid % m;
+	const auto ni = tid / m;
+
+	const auto memory_index = ni * ldy + mi;
+
+	if (b == 0) {
+		y_ptr[memory_index] = a * x_ptr[tid] + b * y_ptr[memory_index];
+	} else {
+		y_ptr[memory_index] = a * x_ptr[tid];
+	}
+}
+
+template <class Y_T>
+void axby(
+		const std::size_t m,
+		const std::size_t n,
+		const double a,
+		const double* const x_ptr,
+		const double b,
+		Y_T* const y_ptr, const std::size_t ldy,
+		cudaStream_t cuda_stream
+		) {
+	constexpr std::size_t block_size = 256;
+	axby_kernel
+		<<<(m * n + block_size - 1) / block_size, block_size, 0, cuda_stream>>>(
+				m, n,
+				a,
+				x_ptr,
+				b,
+				y_ptr, ldy
+			);
+}
+
 void gemm_core(
 		mtk::oztcecgemm::handle_t handle,
 		const mtk::oztcecgemm::operation_t op_A,
@@ -136,16 +237,24 @@ void gemm_core(
 		const std::size_t k,
 		const void* const a_ptr, const std::size_t lda, const mtk::oztcecgemm::detail::data_t type_a,
 		const void* const b_ptr, const std::size_t ldb, const mtk::oztcecgemm::detail::data_t type_b,
+		float* const c_ptr,
 		const mtk::oztcecgemm::detail::gemm_pair_config_t& gemm_pair_config,
-		const mtk::oztcecgemm::compute_mode_t compute_mode
+		const mtk::oztcecgemm::compute_mode_t compute_mode,
+		void* const working_memory_ptr
 		) {
 	const auto gemm_mode = gemm_pair_config.gemm_mode;
 	const auto split_config = mtk::oztcecgemm::detail::get_split_config(compute_mode);
-	const auto lda_r = gemm_pair_config.A_id == -1 ? lda : k;
-	const auto ldb_r = gemm_pair_config.B_id == -1 ? ldb : k;
-	const void* const a_ptr_r = gemm_pair_config.A_id == -1 ? a_ptr : nullptr;
-	const void* const b_ptr_r = gemm_pair_config.B_id == -1 ? a_ptr : nullptr;
-	void* const c_ptr_r = nullptr;
+	const auto lda_r = gemm_pair_config.A_id == 0 ? lda : k;
+	const auto ldb_r = gemm_pair_config.B_id == 0 ? ldb : k;
+
+	const std::size_t working_memory_size_A = m * k * mtk::oztcecgemm::detail::get_data_size_in_byte(split_config.matrix_A_split_types[gemm_pair_config.A_id]);
+
+	void* const a_working_ptr = working_memory_ptr;
+	void* const b_working_ptr = reinterpret_cast<std::uint8_t*>(working_memory_ptr) + working_memory_size_A;
+
+	const void* const a_ptr_r = gemm_pair_config.A_id == 0 ? a_ptr : a_working_ptr;
+	const void* const b_ptr_r = gemm_pair_config.B_id == 0 ? b_ptr : b_working_ptr;
+	void* const c_ptr_r = c_ptr;
 
 	const float alpha_r = 1, beta_r = 0;
 
@@ -155,8 +264,10 @@ void gemm_core(
 	case mtk::oztcecgemm::detail::cublas_tf32:
 	case mtk::oztcecgemm::detail::cublas_fp16:
 		{
-			const auto op_A_r = gemm_pair_config.A_id == -1 ? to_cublasOperation_t(op_A) : CUBLAS_OP_T;
-			const auto op_B_r = gemm_pair_config.B_id == -1 ? to_cublasOperation_t(op_B) : CUBLAS_OP_N;
+			const auto op_A_r = gemm_pair_config.A_id == 0 ? to_cublasOperation_t(op_A) : CUBLAS_OP_T;
+			const auto op_B_r = gemm_pair_config.B_id == 0 ? to_cublasOperation_t(op_B) : CUBLAS_OP_N;
+			const auto type_A_r = gemm_pair_config.A_id == 0 ? type_a : split_config.matrix_A_split_types[gemm_pair_config.A_id];
+			const auto type_B_r = gemm_pair_config.B_id == 0 ? type_b : split_config.matrix_B_split_types[gemm_pair_config.B_id];
 
 			const auto cublas_algorithm = gemm_mode == mtk::oztcecgemm::detail::cublas_sgemm ? CUBLAS_GEMM_DEFAULT : CUBLAS_GEMM_DEFAULT_TENSOR_OP;
 
@@ -171,8 +282,8 @@ void gemm_core(
 						op_B_r,
 						m, n, k,
 						&alpha_r,
-						a_ptr_r, to_cudaDataType_t(type_a), lda_r,
-						b_ptr_r, to_cudaDataType_t(type_b), ldb_r,
+						a_ptr_r, to_cudaDataType_t(type_A_r), lda_r,
+						b_ptr_r, to_cudaDataType_t(type_B_r), ldb_r,
 						&beta_r,
 						c_ptr_r, CUDA_R_32F, m,
 						cublas_compute_mode,
@@ -183,8 +294,8 @@ void gemm_core(
 	case mtk::oztcecgemm::detail::shgemm_tf32:
 	case mtk::oztcecgemm::detail::shgemm_fp16:
 		{
-			const auto op_A_r = gemm_pair_config.A_id == -1 ? to_shgemm_operation_t(op_A) : mtk::shgemm::op_t;
-			const auto op_B_r = gemm_pair_config.B_id == -1 ? to_shgemm_operation_t(op_B) : mtk::shgemm::op_n;
+			const auto op_A_r = gemm_pair_config.A_id == 0 ? to_shgemm_operation_t(op_A) : mtk::shgemm::op_t;
+			const auto op_B_r = gemm_pair_config.B_id == 0 ? to_shgemm_operation_t(op_B) : mtk::shgemm::op_n;
 			const auto shgemm_mode = gemm_mode == mtk::oztcecgemm::detail::shgemm_fp16 ? mtk::shgemm::fp16 : mtk::shgemm::tf32;
 			mtk::shgemm::shgemm(
 					handle->shgemm_handle,
@@ -225,11 +336,20 @@ int mtk::oztcecgemm::gemm(
 		const mtk::oztcecgemm::compute_mode_t compute_mode
 		) {
 	mtk::oztcecgemm::detail::data_t input_type;
-	if (compute_mode == mtk::oztcecgemm::fp32_split_3) {
+	switch (compute_mode) {
+	case mtk::oztcecgemm::fp32_split_3:
+	case mtk::oztcecgemm::sgemm:
 		input_type = mtk::oztcecgemm::detail::fp32;
-	} else {
+		break;
+	default:
 		OZTCECGEM_NOT_IMPLEMENTED;
 	}
+
+	float*  const c_fp32_ptr = reinterpret_cast<float* >(handle->working_memory_ptr);
+	double* const c_fp64_ptr = reinterpret_cast<double*>(c_fp32_ptr + m * n);
+	void*   const working_memory_ptr = c_fp64_ptr + m * n;
+
+	init_fp64_buffer(c_fp64_ptr, m * n, handle->cuda_stream);
 
 	if (input_type == mtk::oztcecgemm::detail::fp32) {
 		split_AB(
@@ -248,13 +368,37 @@ int mtk::oztcecgemm::gemm(
 					m, n, k,
 					a_ptr, lda, input_type,
 					b_ptr, ldb, input_type,
+					c_fp32_ptr,
 					gemm_pair_config,
-					compute_mode
+					compute_mode,
+					working_memory_ptr
 					);
+			accumulate_in_fp64(c_fp64_ptr, c_fp32_ptr, m * n, handle->cuda_stream);
 		}
 	} else {
 		OZTCECGEM_NOT_IMPLEMENTED;
 	}
 
+	if (mtk::oztcecgemm::detail::get_output_type(compute_mode) == detail::fp32) {
+		using C_T = float;
+		axby<C_T>(
+				m, n,
+				*reinterpret_cast<const C_T*>(alpha),
+				c_fp64_ptr,
+				*reinterpret_cast<const C_T*>(beta),
+				reinterpret_cast<C_T*>(c_ptr), ldc,
+				handle->cuda_stream
+				);
+	} else {
+		using C_T = double;
+		axby<C_T>(
+				m, n,
+				*reinterpret_cast<const C_T*>(alpha),
+				c_fp64_ptr,
+				*reinterpret_cast<const C_T*>(beta),
+				reinterpret_cast<C_T*>(c_ptr), ldc,
+				handle->cuda_stream
+				);
+	}
 	return 0;
 }
