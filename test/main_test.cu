@@ -97,6 +97,10 @@ void gemm_eval(
 	auto mat_AB_uptr = cutf::memory::get_device_unique_ptr<T>(max_AB_size);
 	auto mat_C_uptr  = cutf::memory::get_device_unique_ptr<T>(max_C_size);
 
+	auto cugen = cutf::curand::get_curand_unique_ptr(CURAND_RNG_PSEUDO_MT19937);
+	CUTF_CHECK_ERROR(curandSetPseudoRandomGeneratorSeed(*cugen.get(), 0));
+	CUTF_CHECK_ERROR(cutf::curand::generate_uniform(*cugen.get(), mat_AB_uptr.get(), max_AB_size));
+
 	for (const auto gemm : gemm_list) {
 		const auto m = std::get<0>(gemm);
 		const auto n = std::get<1>(gemm);
