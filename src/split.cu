@@ -133,7 +133,9 @@ void split_2_A(
 	};
 
 	if (type_1 == mtk::oztcecgemm::detail::fp16 && type_2 == mtk::oztcecgemm::detail::fp32) {
-		cudaLaunchKernel((void*)split_2_no_smem_kernel<INPUT_T, float, half>, grid_size, block_size, (void**)args, 0, cuda_stream);
+		CUTF_CHECK_ERROR(cudaLaunchKernel((void*)split_2_no_smem_kernel<INPUT_T, float, half>, grid_size, block_size, (void**)args, 0, cuda_stream));
+	} else {
+		OZTCECGEM_NOT_IMPLEMENTED;
 	}
 }
 } // unnamed namespace
