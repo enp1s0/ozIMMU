@@ -18,9 +18,12 @@ std::size_t split_core(
 		const T* const two_to_alpha_ptr,
 		cudaStream_t cuda_stream
 		) {
+	const auto num_split = data_type_list.size() - 1;
 	std::size_t offset = 0;
 
-	if (data_type_list.size() == 2) {
+	if (num_split <= 1) {
+		// Do nothing
+	} else if (num_split == 2) {
 		mtk::oztcecgemm::split_2(
 				reinterpret_cast<std::uint8_t*>(split_ptr), data_type_list[0],
 				reinterpret_cast<std::uint8_t*>(split_ptr) + mtk::oztcecgemm::detail::get_data_size_in_byte(data_type_list[0]) * m * n, data_type_list[1],
@@ -31,8 +34,8 @@ std::size_t split_core(
 				two_to_alpha_ptr,
 				cuda_stream
 				);
-		offset += mtk::oztcecgemm::detail::get_data_size_in_byte(data_type_list[0]) * m * n;
 		offset += mtk::oztcecgemm::detail::get_data_size_in_byte(data_type_list[1]) * m * n;
+		offset += mtk::oztcecgemm::detail::get_data_size_in_byte(data_type_list[2]) * m * n;
 	} else {
 		OZTCECGEM_NOT_IMPLEMENTED;
 	}

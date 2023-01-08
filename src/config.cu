@@ -1,4 +1,5 @@
 #include "config.hpp"
+#include "utils.hpp"
 
 mtk::oztcecgemm::detail::split_config_t mtk::oztcecgemm::detail::get_split_config(
 		const mtk::oztcecgemm::compute_mode_t compute_mode
@@ -6,15 +7,15 @@ mtk::oztcecgemm::detail::split_config_t mtk::oztcecgemm::detail::get_split_confi
 	switch (compute_mode) {
 	case mtk::oztcecgemm::sgemm:
 		return split_config_t {
-			{},
-			{},
-			{{-1, -1, detail::cublas_sgemm}}
+			{detail::original},
+			{detail::original},
+			{{0, 0, detail::cublas_sgemm}}
 		};
 	case mtk::oztcecgemm::fp32_split_3:
 		return split_config_t {
-			{detail::fp16, detail::fp32},
-			{detail::fp16, detail::fp32},
-			{{0, 0, detail::cublas_tf32}, {0, 1, detail::shgemm_tf32}, {1, -1, detail::cublas_sgemm}}
+			{detail::original, detail::fp16, detail::fp32},
+			{detail::original, detail::fp16, detail::fp32},
+			{{1, 1, detail::cublas_tf32}, {1, 2, detail::shgemm_tf32}, {2, 0, detail::cublas_sgemm}}
 		};
 	default:
 		break;

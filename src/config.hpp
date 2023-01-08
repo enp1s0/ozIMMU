@@ -13,9 +13,11 @@ enum matrix_t {
 };
 
 enum data_t {
+	fp64,
 	fp32,
 	fp16,
-	int8
+	int8,
+	original
 };
 
 enum gemm_t {
@@ -45,8 +47,9 @@ struct gemm_pair_config_t {
 };
 
 struct split_config_t {
-	std::vector<data_t> matrix_a_split_types;
-	std::vector<data_t> matrix_b_split_types;
+	// {[0] = original_type, [1] = ...}
+	std::vector<data_t> matrix_A_split_types;
+	std::vector<data_t> matrix_B_split_types;
 	std::vector<gemm_pair_config_t> gemm_pair_config_list;
 };
 
