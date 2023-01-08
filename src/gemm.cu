@@ -25,8 +25,8 @@ std::size_t split_core(
 		// Do nothing
 	} else if (num_split == 2) {
 		mtk::oztcecgemm::split_2(
-				reinterpret_cast<std::uint8_t*>(split_ptr), data_type_list[0],
-				reinterpret_cast<std::uint8_t*>(split_ptr) + mtk::oztcecgemm::detail::get_data_size_in_byte(data_type_list[0]) * m * n, data_type_list[1],
+				reinterpret_cast<std::uint8_t*>(split_ptr), data_type_list[1],
+				reinterpret_cast<std::uint8_t*>(split_ptr) + mtk::oztcecgemm::detail::get_data_size_in_byte(data_type_list[0]) * m * n, data_type_list[2],
 				m, n,
 				src_ptr, mtk::oztcecgemm::detail::get_data_t<T>(), ld,
 				op,
