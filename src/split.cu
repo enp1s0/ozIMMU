@@ -1,6 +1,7 @@
 #include <cutf/thread.hpp>
 #include <cutf/experimental/fp.hpp>
 #include <cutf/math.hpp>
+#include <cutf/type.hpp>
 #include "config.hpp"
 #include "split.hpp"
 #include "utils.hpp"
@@ -16,16 +17,13 @@ __device__ T get_exp_max_element(
 		T* const working_smem_ptr
 		) {
 	using bs_t = typename cutf::experimental::fp::same_size_uint<T>::type;
-	const T* local_ptr = ptr + threadIdx.x * inc;
 
 	T local_abs_max = 0;
 
-	unsigned i = 0;
+	unsigned i = threadIdx.x;
+	const T* local_ptr = ptr + i * inc;
 	for (; i < length; i += blockDim.x) {
-		const auto v = cutf::experimental::fp::reinterpret_as_fp(
-				cutf::experimental::fp::reinterpret_as_uint(*local_ptr) &
-				((~static_cast<bs_t>(0)) << cutf::experimental::fp::get_exponent_size<T>())
-				);
+		const auto v = cutf::experimental::fp::reinterpret_as_fp(cutf::experimental::fp::mask_exponent(*local_ptr));
 
 		local_abs_max = cutf::math::max(local_abs_max, v);
 
@@ -94,9 +92,9 @@ __global__ void split_2_no_smem_kernel(
 	const auto sigma = max_exp * 2 * 3 / 4 * two_to_alpha;
 
 	for (unsigned i = threadIdx.x; i < n; i += blockDim.x) {
-		const auto a = in_ptr[(col_major ? row_index : (row_index * ld)) + (col_major ? i * ld : i)];
-		const auto a1 = (sigma + a) - sigma;
-		const auto a2 = a - a1;
+		const auto a = in_ptr[(col_major ? (i * ld + row_index) : (i + row_index * ld))];
+		const OUTPUT_1_T a1 = (sigma + a) - sigma;
+		const OUTPUT_2_T a2 = cutf::type::cast<INPUT_T>(a) - cutf::type::cast<INPUT_T>(a1);
 		out_1_ptr[row_index * n + i] = a1;
 		out_2_ptr[row_index * n + i] = a2;
 	}
@@ -133,7 +131,7 @@ void split_2_A(
 	};
 
 	if (type_1 == mtk::oztcecgemm::detail::fp16 && type_2 == mtk::oztcecgemm::detail::fp32) {
-		CUTF_CHECK_ERROR(cudaLaunchKernel((void*)split_2_no_smem_kernel<INPUT_T, float, half>, grid_size, block_size, (void**)args, 0, cuda_stream));
+		CUTF_CHECK_ERROR(cudaLaunchKernel((void*)split_2_no_smem_kernel<INPUT_T, half, float>, grid_size, block_size, (void**)args, 0, cuda_stream));
 	} else {
 		OZTCECGEM_NOT_IMPLEMENTED;
 	}

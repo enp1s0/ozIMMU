@@ -26,7 +26,7 @@ std::size_t split_core(
 	} else if (num_split == 2) {
 		mtk::oztcecgemm::split_2(
 				reinterpret_cast<std::uint8_t*>(split_ptr), data_type_list[1],
-				reinterpret_cast<std::uint8_t*>(split_ptr) + mtk::oztcecgemm::detail::get_data_size_in_byte(data_type_list[0]) * m * n, data_type_list[2],
+				reinterpret_cast<std::uint8_t*>(split_ptr) + mtk::oztcecgemm::detail::get_data_size_in_byte(data_type_list[1]) * m * n, data_type_list[2],
 				m, n,
 				src_ptr, mtk::oztcecgemm::detail::get_data_t<T>(), ld,
 				op,
@@ -46,6 +46,7 @@ std::size_t split_core(
 template <class T>
 void split_AB(
 		mtk::oztcecgemm::handle_t handle,
+		void* working_memory_ptr,
 		const mtk::oztcecgemm::operation_t op_A,
 		const mtk::oztcecgemm::operation_t op_B,
 		const std::size_t m,
@@ -60,7 +61,7 @@ void split_AB(
 	const auto split_config = mtk::oztcecgemm::detail::get_split_config(compute_mode);
 
 	const auto b_offset = split_core(
-			handle->working_memory_ptr,
+			working_memory_ptr,
 			op_A,
 			m, k,
 			a_ptr, lda,
@@ -71,7 +72,7 @@ void split_AB(
 			);
 
 	split_core(
-			reinterpret_cast<std::uint8_t*>(handle->working_memory_ptr) + b_offset,
+			reinterpret_cast<std::uint8_t*>(working_memory_ptr) + b_offset,
 			op_B,
 			k, n,
 			b_ptr, ldb,
@@ -200,7 +201,7 @@ __global__ void axby_kernel(
 
 	const auto memory_index = ni * ldy + mi;
 
-	if (b == 0) {
+	if (b != 0) {
 		y_ptr[memory_index] = a * x_ptr[tid] + b * y_ptr[memory_index];
 	} else {
 		y_ptr[memory_index] = a * x_ptr[tid];
@@ -247,10 +248,23 @@ void gemm_core(
 	const auto lda_r = gemm_pair_config.A_id == 0 ? lda : k;
 	const auto ldb_r = gemm_pair_config.B_id == 0 ? ldb : k;
 
-	const std::size_t working_memory_size_A = m * k * mtk::oztcecgemm::detail::get_data_size_in_byte(split_config.matrix_A_split_types[gemm_pair_config.A_id]);
+	std::size_t A_working_ptr_offset = 0;
+	for (unsigned i = 0; i < gemm_pair_config.A_id; i++) {
+		const auto t = split_config.matrix_A_split_types[i];
+		A_working_ptr_offset += m * k * mtk::oztcecgemm::detail::get_data_size_in_byte(t);
+	}
 
-	void* const a_working_ptr = working_memory_ptr;
-	void* const b_working_ptr = reinterpret_cast<std::uint8_t*>(working_memory_ptr) + working_memory_size_A;
+	std::size_t B_working_ptr_offset = 0;
+	for (const auto t : split_config.matrix_A_split_types) {
+		B_working_ptr_offset += m * k * mtk::oztcecgemm::detail::get_data_size_in_byte(t);
+	}
+	for (unsigned i = 0; i < gemm_pair_config.B_id; i++) {
+		const auto t = split_config.matrix_B_split_types[i];
+		B_working_ptr_offset += k * n * mtk::oztcecgemm::detail::get_data_size_in_byte(t);
+	}
+
+	void* const a_working_ptr = reinterpret_cast<std::uint8_t*>(working_memory_ptr) + A_working_ptr_offset;
+	void* const b_working_ptr = reinterpret_cast<std::uint8_t*>(working_memory_ptr) + B_working_ptr_offset;
 
 	const void* const a_ptr_r = gemm_pair_config.A_id == 0 ? a_ptr : a_working_ptr;
 	const void* const b_ptr_r = gemm_pair_config.B_id == 0 ? b_ptr : b_working_ptr;
@@ -354,6 +368,7 @@ int mtk::oztcecgemm::gemm(
 	if (input_type == mtk::oztcecgemm::detail::fp32) {
 		split_AB(
 				handle,
+				working_memory_ptr,
 				op_A, op_B,
 				m, n, k,
 				reinterpret_cast<const float*>(a_ptr), lda,

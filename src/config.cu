@@ -15,7 +15,7 @@ mtk::oztcecgemm::detail::split_config_t mtk::oztcecgemm::detail::get_split_confi
 		return split_config_t {
 			{detail::original, detail::fp16, detail::fp32},
 			{detail::original, detail::fp16, detail::fp32},
-			{{1, 1, detail::cublas_tf32}, {1, 2, detail::shgemm_tf32}, {2, 0, detail::cublas_sgemm}}
+			{{1, 1, detail::cublas_fp16}, {1, 2, detail::shgemm_tf32}, {2, 0, detail::cublas_sgemm}}
 		};
 	default:
 		break;
