@@ -62,7 +62,7 @@ std::size_t calculate_working_memory_size(
 
 	std::size_t sum_data_type_size = 0;
 	for (const auto d : split_data_types) {
-		sum_data_type_size += mtk::oztcecgemm::detail::get_data_size_in_byte(d);
+		sum_data_type_size += mtk::oztcecgemm::get_data_size_in_byte(d);
 	}
 
 	return sum_data_type_size * m * n;
@@ -83,8 +83,8 @@ void mtk::oztcecgemm::reallocate_working_memory(
 
 		const auto working_memory_A = calculate_working_memory_size(m, k, mode, detail::matrix_A);
 		const auto working_memory_B = calculate_working_memory_size(k, n, mode, detail::matrix_B);
-		const auto working_memory_C_fp32 = m * n * mtk::oztcecgemm::detail::get_data_size_in_byte(detail::fp32);
-		const auto working_memory_C_fp64 = m * n * mtk::oztcecgemm::detail::get_data_size_in_byte(detail::fp64);
+		const auto working_memory_C_fp32 = m * n * mtk::oztcecgemm::get_data_size_in_byte(fp32);
+		const auto working_memory_C_fp64 = m * n * mtk::oztcecgemm::get_data_size_in_byte(fp64);
 
 		max_working_memory_size = std::max(
 				max_working_memory_size,
@@ -113,4 +113,37 @@ std::string mtk::oztcecgemm::get_compute_mode_name_str(
 		break;
 	}
 	return "Unknown";
+}
+
+mtk::oztcecgemm::data_t mtk::oztcecgemm::get_output_type(
+		const mtk::oztcecgemm::compute_mode_t compute_mode
+		) {
+	switch (compute_mode) {
+	case mtk::oztcecgemm::sgemm:
+		return mtk::oztcecgemm::fp32;
+	case mtk::oztcecgemm::fp32_split_3:
+		return mtk::oztcecgemm::fp64;
+	default:
+		break;
+	}
+	OZTCECGEM_NOT_IMPLEMENTED;
+	return mtk::oztcecgemm::original;
+}
+
+std::size_t mtk::oztcecgemm::get_data_size_in_byte(
+		const mtk::oztcecgemm::data_t d
+		) {
+	switch (d) {
+	case mtk::oztcecgemm::fp64:
+		return 8;
+	case mtk::oztcecgemm::fp32:
+		return 4;
+	case mtk::oztcecgemm::fp16:
+		return 2;
+	case mtk::oztcecgemm::original:
+		return 0;
+	default:
+		break;
+	}
+	return 0;
 }

@@ -103,8 +103,8 @@ __global__ void split_2_no_smem_kernel(
 
 template <class INPUT_T>
 void split_2_A(
-		void* const out_1_ptr, const mtk::oztcecgemm::detail::data_t type_1,
-		void* const out_2_ptr, const mtk::oztcecgemm::detail::data_t type_2,
+		void* const out_1_ptr, const mtk::oztcecgemm::data_t type_1,
+		void* const out_2_ptr, const mtk::oztcecgemm::data_t type_2,
 		const std::size_t m,
 		const std::size_t n,
 		const INPUT_T* const in_ptr,
@@ -131,7 +131,7 @@ void split_2_A(
 		nullptr
 	};
 
-	if (type_1 == mtk::oztcecgemm::detail::fp16 && type_2 == mtk::oztcecgemm::detail::fp32) {
+	if (type_1 == mtk::oztcecgemm::fp16 && type_2 == mtk::oztcecgemm::fp32) {
 		CUTF_CHECK_ERROR(cudaLaunchKernel((void*)split_2_no_smem_kernel<INPUT_T, half, float>, grid_size, block_size, (void**)args, 0, cuda_stream));
 	} else {
 		OZTCECGEM_NOT_IMPLEMENTED;
@@ -140,11 +140,11 @@ void split_2_A(
 } // unnamed namespace
 
 void mtk::oztcecgemm::split_2(
-		void* const out_1_ptr, const mtk::oztcecgemm::detail::data_t type_1,
-		void* const out_2_ptr, const mtk::oztcecgemm::detail::data_t type_2,
+		void* const out_1_ptr, const mtk::oztcecgemm::data_t type_1,
+		void* const out_2_ptr, const mtk::oztcecgemm::data_t type_2,
 		const std::size_t m,
 		const std::size_t n,
-		const void* const in_ptr, const mtk::oztcecgemm::detail::data_t type_in,
+		const void* const in_ptr, const mtk::oztcecgemm::data_t type_in,
 		const std::size_t ld,
 		const mtk::oztcecgemm::operation_t op,
 		const mtk::oztcecgemm::detail::matrix_t matrix,
@@ -153,7 +153,7 @@ void mtk::oztcecgemm::split_2(
 		const cudaStream_t cuda_stream
 		) {
 	if (matrix == mtk::oztcecgemm::detail::matrix_A) {
-		if (type_in == mtk::oztcecgemm::detail::fp32) {
+		if (type_in == mtk::oztcecgemm::fp32) {
 			split_2_A(
 					out_1_ptr, type_1,
 					out_2_ptr, type_2,
@@ -168,7 +168,7 @@ void mtk::oztcecgemm::split_2(
 			OZTCECGEM_NOT_IMPLEMENTED;
 		}
 	} else {
-		if (type_in == mtk::oztcecgemm::detail::fp32) {
+		if (type_in == mtk::oztcecgemm::fp32) {
 			split_2_A(
 					out_1_ptr, type_1,
 					out_2_ptr, type_2,

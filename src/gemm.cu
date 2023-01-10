@@ -13,7 +13,7 @@ std::size_t split_core(
 		const std::size_t m,
 		const std::size_t n,
 		const T* const src_ptr, const std::size_t ld,
-		const std::vector<mtk::oztcecgemm::detail::data_t> data_type_list,
+		const std::vector<mtk::oztcecgemm::data_t> data_type_list,
 		const mtk::oztcecgemm::detail::matrix_t matrix,
 		const T* const two_to_alpha_ptr,
 		cudaStream_t cuda_stream
@@ -26,7 +26,7 @@ std::size_t split_core(
 	} else if (num_split == 2) {
 		mtk::oztcecgemm::split_2(
 				reinterpret_cast<std::uint8_t*>(split_ptr), data_type_list[1],
-				reinterpret_cast<std::uint8_t*>(split_ptr) + mtk::oztcecgemm::detail::get_data_size_in_byte(data_type_list[1]) * m * n, data_type_list[2],
+				reinterpret_cast<std::uint8_t*>(split_ptr) + mtk::oztcecgemm::get_data_size_in_byte(data_type_list[1]) * m * n, data_type_list[2],
 				m, n,
 				src_ptr, mtk::oztcecgemm::detail::get_data_t<T>(), ld,
 				op,
@@ -34,8 +34,8 @@ std::size_t split_core(
 				two_to_alpha_ptr,
 				cuda_stream
 				);
-		offset += mtk::oztcecgemm::detail::get_data_size_in_byte(data_type_list[1]) * m * n;
-		offset += mtk::oztcecgemm::detail::get_data_size_in_byte(data_type_list[2]) * m * n;
+		offset += mtk::oztcecgemm::get_data_size_in_byte(data_type_list[1]) * m * n;
+		offset += mtk::oztcecgemm::get_data_size_in_byte(data_type_list[2]) * m * n;
 	} else {
 		OZTCECGEM_NOT_IMPLEMENTED;
 	}
@@ -84,12 +84,12 @@ void split_AB(
 }
 
 cudaDataType_t to_cudaDataType_t(
-		const mtk::oztcecgemm::detail::data_t d
+		const mtk::oztcecgemm::data_t d
 		) {
 	switch (d) {
-	case mtk::oztcecgemm::detail::fp32:
+	case mtk::oztcecgemm::fp32:
 		return CUDA_R_32F;
-	case mtk::oztcecgemm::detail::fp16:
+	case mtk::oztcecgemm::fp16:
 		return CUDA_R_16F;
 	default:
 		break;
@@ -236,8 +236,8 @@ void gemm_core(
 		const std::size_t m,
 		const std::size_t n,
 		const std::size_t k,
-		const void* const a_ptr, const std::size_t lda, const mtk::oztcecgemm::detail::data_t type_a,
-		const void* const b_ptr, const std::size_t ldb, const mtk::oztcecgemm::detail::data_t type_b,
+		const void* const a_ptr, const std::size_t lda, const mtk::oztcecgemm::data_t type_a,
+		const void* const b_ptr, const std::size_t ldb, const mtk::oztcecgemm::data_t type_b,
 		float* const c_ptr,
 		const mtk::oztcecgemm::detail::gemm_pair_config_t& gemm_pair_config,
 		const mtk::oztcecgemm::compute_mode_t compute_mode,
@@ -251,16 +251,16 @@ void gemm_core(
 	std::size_t A_working_ptr_offset = 0;
 	for (unsigned i = 0; i < gemm_pair_config.A_id; i++) {
 		const auto t = split_config.matrix_A_split_types[i];
-		A_working_ptr_offset += m * k * mtk::oztcecgemm::detail::get_data_size_in_byte(t);
+		A_working_ptr_offset += m * k * mtk::oztcecgemm::get_data_size_in_byte(t);
 	}
 
 	std::size_t B_working_ptr_offset = 0;
 	for (const auto t : split_config.matrix_A_split_types) {
-		B_working_ptr_offset += m * k * mtk::oztcecgemm::detail::get_data_size_in_byte(t);
+		B_working_ptr_offset += m * k * mtk::oztcecgemm::get_data_size_in_byte(t);
 	}
 	for (unsigned i = 0; i < gemm_pair_config.B_id; i++) {
 		const auto t = split_config.matrix_B_split_types[i];
-		B_working_ptr_offset += k * n * mtk::oztcecgemm::detail::get_data_size_in_byte(t);
+		B_working_ptr_offset += k * n * mtk::oztcecgemm::get_data_size_in_byte(t);
 	}
 
 	void* const a_working_ptr = reinterpret_cast<std::uint8_t*>(working_memory_ptr) + A_working_ptr_offset;
@@ -369,11 +369,11 @@ int mtk::oztcecgemm::gemm(
 		void* const c_ptr, std::size_t ldc,
 		const mtk::oztcecgemm::compute_mode_t compute_mode
 		) {
-	mtk::oztcecgemm::detail::data_t input_type;
+	mtk::oztcecgemm::data_t input_type;
 	switch (compute_mode) {
 	case mtk::oztcecgemm::fp32_split_3:
 	case mtk::oztcecgemm::sgemm:
-		input_type = mtk::oztcecgemm::detail::fp32;
+		input_type = mtk::oztcecgemm::fp32;
 		break;
 	default:
 		OZTCECGEM_NOT_IMPLEMENTED;
@@ -385,7 +385,7 @@ int mtk::oztcecgemm::gemm(
 
 	init_fp64_buffer(c_fp64_ptr, m * n, handle->cuda_stream);
 
-	if (input_type == mtk::oztcecgemm::detail::fp32) {
+	if (input_type == mtk::oztcecgemm::fp32) {
 		split_AB(
 				handle,
 				working_memory_ptr,
@@ -414,7 +414,7 @@ int mtk::oztcecgemm::gemm(
 		OZTCECGEM_NOT_IMPLEMENTED;
 	}
 
-	if (mtk::oztcecgemm::detail::get_output_type(compute_mode) == detail::fp32) {
+	if (mtk::oztcecgemm::get_output_type(compute_mode) == fp32) {
 		using C_T = float;
 		axby<C_T>(
 				m, n,

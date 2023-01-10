@@ -12,14 +12,6 @@ enum matrix_t {
 	matrix_C
 };
 
-enum data_t {
-	fp64,
-	fp32,
-	fp16,
-	int8,
-	original
-};
-
 enum gemm_t {
 	cublas_sgemm,
 	cublas_tf32,
@@ -32,10 +24,6 @@ enum gemm_t {
 	hsgemm_fp16,
 	hsgemm_tf32
 };
-
-std::size_t get_data_size_in_byte(
-		const data_t d
-		);
 
 template <class T>
 inline data_t get_data_t();
@@ -57,10 +45,6 @@ struct split_config_t {
 
 split_config_t get_split_config(
 		const mtk::oztcecgemm::compute_mode_t compute_mode
-		);
-
-data_t get_output_type(
-		const mtk::oztcecgemm::compute_mode_t mode
 		);
 
 } // namespace detail

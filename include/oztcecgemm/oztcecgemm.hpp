@@ -18,6 +18,14 @@ enum compute_mode_t {
 	fp32_split_3
 };
 
+enum data_t {
+	fp64,
+	fp32,
+	fp16,
+	int8,
+	original
+};
+
 int create (mtk::oztcecgemm::handle_t* handle);
 int destroy(mtk::oztcecgemm::handle_t handle);
 void set_cuda_stream(mtk::oztcecgemm::handle_t handle, const cudaStream_t cuda_stream);
@@ -46,6 +54,14 @@ int gemm(
 
 std::string get_compute_mode_name_str(
 		const mtk::oztcecgemm::compute_mode_t mode
+		);
+
+mtk::oztcecgemm::data_t get_output_type(
+		const mtk::oztcecgemm::compute_mode_t mode
+		);
+
+std::size_t get_data_size_in_byte(
+		const mtk::oztcecgemm::data_t d
 		);
 } // namespace oztcecgemm
 } // namespace mtk
