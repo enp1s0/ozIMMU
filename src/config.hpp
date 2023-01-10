@@ -28,7 +28,9 @@ enum gemm_t {
 	tf32tcec,
 	fp16tcec,
 	shgemm_fp16,
-	shgemm_tf32
+	shgemm_tf32,
+	hsgemm_fp16,
+	hsgemm_tf32
 };
 
 std::size_t get_data_size_in_byte(

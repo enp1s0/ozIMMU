@@ -325,6 +325,26 @@ void gemm_core(
 					);
 		}
 		break;
+	case mtk::oztcecgemm::detail::hsgemm_tf32:
+	case mtk::oztcecgemm::detail::hsgemm_fp16:
+		{
+			const auto op_A_r = gemm_pair_config.A_id == 0 ? to_shgemm_operation_t(op_A) : mtk::shgemm::op_t;
+			const auto op_B_r = gemm_pair_config.B_id == 0 ? to_shgemm_operation_t(op_B) : mtk::shgemm::op_n;
+			const auto shgemm_mode = gemm_mode == mtk::oztcecgemm::detail::shgemm_fp16 ? mtk::shgemm::fp16 : mtk::shgemm::tf32;
+			mtk::shgemm::hsgemm(
+					handle->shgemm_handle,
+					op_A_r,
+					op_B_r,
+					m, n, k,
+					&alpha_r,
+					reinterpret_cast<const half*>(a_ptr_r), lda_r,
+					reinterpret_cast<const float*>(b_ptr_r), ldb_r,
+					&beta_r,
+					reinterpret_cast<float*>(c_ptr_r), m,
+					shgemm_mode
+					);
+		}
+		break;
 	case mtk::oztcecgemm::detail::fp16tcec:
 	case mtk::oztcecgemm::detail::tf32tcec:
 		{}

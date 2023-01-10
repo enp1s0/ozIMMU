@@ -2,6 +2,7 @@
 #include <cutf/experimental/fp.hpp>
 #include <cutf/math.hpp>
 #include <cutf/type.hpp>
+#include <cutf/cuda.hpp>
 #include "config.hpp"
 #include "split.hpp"
 #include "utils.hpp"
