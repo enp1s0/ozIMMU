@@ -114,7 +114,7 @@ void gemm_eval(
 
 	auto cugen = cutf::curand::get_curand_unique_ptr(CURAND_RNG_PSEUDO_MT19937);
 	CUTF_CHECK_ERROR(curandSetPseudoRandomGeneratorSeed(*cugen.get(), 0));
-	CUTF_CHECK_ERROR(cutf::curand::generate_uniform(*cugen.get(), mat_AB_uptr.get(), max_AB_count));
+	CUTF_CHECK_ERROR(cutf::curand::generate_normal(*cugen.get(), mat_AB_uptr.get(), max_AB_count, 0, 1));
 
 	for (const auto gemm : gemm_list) {
 		const auto m = std::get<0>(gemm);
@@ -183,13 +183,18 @@ int main(int argc, char** argv) {
 		mtk::oztcecgemm::fp32_split_3,
 	};
 
-	for (const auto mode : modes) {
-		gemm_list.push_back(std::tuple<std::size_t, std::size_t, std::size_t, mtk::oztcecgemm::compute_mode_t>(
-					16,
-					16,
-					16,
-					mode
-					));
+	std::printf("mode,m,n,k,residual,max_rerative,throughput_in_tflops\n");
+	std::fflush(stdout);
+	for (unsigned i = 8; i <= 14; i++) {
+		const auto N = 1lu << i;
+		for (const auto mode : modes) {
+			gemm_list.push_back(std::tuple<std::size_t, std::size_t, std::size_t, mtk::oztcecgemm::compute_mode_t>(
+						N,
+						N,
+						N,
+						mode
+						));
+		}
 	}
 
 	gemm_eval(gemm_list);
