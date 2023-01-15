@@ -347,7 +347,27 @@ void gemm_core(
 		break;
 	case mtk::oztcecgemm::detail::fp16tcec:
 	case mtk::oztcecgemm::detail::tf32tcec:
-		{}
+		{
+			const auto op_A_r = gemm_pair_config.A_id == 0 ? to_cublasOperation_t(op_A) : CUBLAS_OP_T;
+			const auto op_B_r = gemm_pair_config.B_id == 0 ? to_cublasOperation_t(op_B) : CUBLAS_OP_N;
+			const auto type_A_r = gemm_pair_config.A_id == 0 ? type_a : split_config.matrix_A_split_types[gemm_pair_config.A_id];
+			const auto type_B_r = gemm_pair_config.B_id == 0 ? type_b : split_config.matrix_B_split_types[gemm_pair_config.B_id];
+
+			const auto cumpsgemm_compute_mode = gemm_mode == mtk::oztcecgemm::detail::fp16tcec ? CUMPSGEMM_FP16TCEC : CUMPSGEMM_TF32TCEC;
+
+			cumpsgemm::gemm(
+						handle->cumpsgemm_handle,
+						op_A_r,
+						op_B_r,
+						m, n, k,
+						&alpha_r,
+						reinterpret_cast<const float*>(a_ptr_r), lda_r,
+						reinterpret_cast<const float*>(b_ptr_r), ldb_r,
+						&beta_r,
+						reinterpret_cast<float*>(c_ptr_r), m,
+						cumpsgemm_compute_mode
+						);
+		}
 		break;
 	default:
 		OZTCECGEM_NOT_IMPLEMENTED;

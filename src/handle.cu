@@ -12,6 +12,9 @@ int mtk::oztcecgemm::create(
 	// Initialize SHGEMM handler
 	mtk::shgemm::create(handle->shgemm_handle);
 
+	// Initialize cuMpSGEMM handler
+	cumpsgemm::create(handle->cumpsgemm_handle);
+
 	return 0;
 }
 
@@ -23,6 +26,9 @@ int mtk::oztcecgemm::destroy(
 
 	// Destroy SHGEMM handler
 	mtk::shgemm::destroy(handle->shgemm_handle);
+
+	// Destroy cuMpSGEMM handler
+	cumpsgemm::destroy(handle->cumpsgemm_handle);
 
 	delete handle;
 
@@ -38,6 +44,9 @@ void mtk::oztcecgemm::set_cuda_stream(
 
 	// Set cuda stream to SHGEMM handler
 	mtk::shgemm::set_cuda_stream(handle->shgemm_handle, cuda_stream);
+
+	// Set cuda stream to cuMpSGEMM handler
+	cumpsgemm::set_stream(handle->cumpsgemm_handle, cuda_stream);
 
 	// Set oztcecgemm handler
 	handle->cuda_stream = cuda_stream;
