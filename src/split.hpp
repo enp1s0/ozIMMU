@@ -21,7 +21,7 @@ void split_2(
 
 template <class INPUT_T>
 INPUT_T get_two_to_alpha(const std::size_t k) {
-	return std::ceil((cutf::experimental::fp::get_mantissa_size<INPUT_T>() + 1 + std::log2(k)) / 2);
+	return 1lu << static_cast<unsigned>(std::ceil((cutf::experimental::fp::get_mantissa_size<INPUT_T>() + 1 + std::log2(k)) / 2));
 }
 } // namespace oztcecgemm
 } // namespace mtk
