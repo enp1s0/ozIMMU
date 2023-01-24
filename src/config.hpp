@@ -47,6 +47,8 @@ split_config_t get_split_config(
 		const mtk::oztcecgemm::compute_mode_t compute_mode
 		);
 
+std::string gemm_mode_str(const gemm_t gemm_mode);
+
 } // namespace detail
 } // namespace oztcecgemm
 } // namespace mtk

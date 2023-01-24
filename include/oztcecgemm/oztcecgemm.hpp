@@ -30,6 +30,11 @@ int create (mtk::oztcecgemm::handle_t* handle);
 int destroy(mtk::oztcecgemm::handle_t handle);
 void set_cuda_stream(mtk::oztcecgemm::handle_t handle, const cudaStream_t cuda_stream);
 
+void enable_profiling(mtk::oztcecgemm::handle_t handle);
+void disable_profiling(mtk::oztcecgemm::handle_t handle);
+void print_profiler_result(mtk::oztcecgemm::handle_t handle, const bool csv = false);
+void clear_profiler_result(mtk::oztcecgemm::handle_t handle);
+
 using gemm_list_t = std::vector<std::tuple<std::size_t, std::size_t, std::size_t, mtk::oztcecgemm::compute_mode_t>>;
 
 void reallocate_working_memory(

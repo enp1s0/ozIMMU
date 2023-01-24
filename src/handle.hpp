@@ -3,6 +3,7 @@
 #include <shgemm/shgemm.hpp>
 #include <cumpsgemm/cumpsgemm.hpp>
 #include <cutf/cublas.hpp>
+#include <cutf/debug/time_breakdown.hpp>
 
 struct mtk::oztcecgemm::handle {
 	// handlers
@@ -14,4 +15,7 @@ struct mtk::oztcecgemm::handle {
 	// working memory
 	void* working_memory_ptr;
 	std::size_t current_working_memory_size;
+
+	// profiling
+	cutf::debug::time_breakdown::profiler profiler;
 };

@@ -15,6 +15,9 @@ int mtk::oztcecgemm::create(
 	// Initialize cuMpSGEMM handler
 	cumpsgemm::create(handle->cumpsgemm_handle);
 
+	// Disable profiling by default
+	mtk::oztcecgemm::disable_profiling(*h);
+
 	return 0;
 }
 
@@ -155,4 +158,24 @@ std::size_t mtk::oztcecgemm::get_data_size_in_byte(
 		break;
 	}
 	return 0;
+}
+
+void mtk::oztcecgemm::enable_profiling(mtk::oztcecgemm::handle_t handle) {
+	handle->profiler.enable_measurement();
+}
+
+void mtk::oztcecgemm::disable_profiling(mtk::oztcecgemm::handle_t handle) {
+	handle->profiler.disable_measurement();
+}
+
+void mtk::oztcecgemm::print_profiler_result(mtk::oztcecgemm::handle_t handle, const bool csv) {
+	if (!csv) {
+		handle->profiler.print_result();
+	} else {
+		handle->profiler.print_result_csv();
+	}
+}
+
+void mtk::oztcecgemm::clear_profiler_result(mtk::oztcecgemm::handle_t handle) {
+	handle->profiler.clear();
 }

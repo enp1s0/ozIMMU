@@ -60,6 +60,7 @@ void split_AB(
 
 	const auto split_config = mtk::oztcecgemm::detail::get_split_config(compute_mode);
 
+	handle->profiler.start_timer_sync("split_A");
 	const auto b_offset = split_core(
 			working_memory_ptr,
 			op_A,
@@ -70,7 +71,9 @@ void split_AB(
 			&two_to_alpha,
 			handle->cuda_stream
 			);
+	handle->profiler.stop_timer_sync("split_A");
 
+	handle->profiler.start_timer_sync("split_B");
 	split_core(
 			reinterpret_cast<std::uint8_t*>(working_memory_ptr) + b_offset,
 			op_B,
@@ -81,6 +84,7 @@ void split_AB(
 			&two_to_alpha,
 			handle->cuda_stream
 			);
+	handle->profiler.stop_timer_sync("split_B");
 }
 
 cudaDataType_t to_cudaDataType_t(
@@ -272,6 +276,8 @@ void gemm_core(
 
 	const float alpha_r = 1, beta_r = 0;
 
+	const auto profile_label = mtk::oztcecgemm::detail::gemm_mode_str(gemm_mode);
+	handle->profiler.start_timer_sync(profile_label);
 	switch (gemm_mode) {
 	case mtk::oztcecgemm::detail::cublas_sgemm:
 	case mtk::oztcecgemm::detail::cublas_bf16:
@@ -372,6 +378,7 @@ void gemm_core(
 	default:
 		OZTCECGEM_NOT_IMPLEMENTED;
 	}
+	handle->profiler.stop_timer_sync(profile_label);
 }
 } // unnamed namespace
 
