@@ -336,7 +336,7 @@ void gemm_core(
 		{
 			const auto op_A_r = gemm_pair_config.A_id == 0 ? to_shgemm_operation_t(op_A) : mtk::shgemm::op_t;
 			const auto op_B_r = gemm_pair_config.B_id == 0 ? to_shgemm_operation_t(op_B) : mtk::shgemm::op_n;
-			const auto shgemm_mode = gemm_mode == mtk::oztcecgemm::detail::shgemm_fp16 ? mtk::shgemm::fp16 : mtk::shgemm::tf32;
+			const auto shgemm_mode = gemm_mode == mtk::oztcecgemm::detail::hsgemm_fp16 ? mtk::shgemm::fp16 : mtk::shgemm::tf32;
 			mtk::shgemm::hsgemm(
 					handle->shgemm_handle,
 					op_A_r,
