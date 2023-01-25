@@ -435,12 +435,15 @@ int mtk::oztcecgemm::gemm(
 					compute_mode,
 					working_memory_ptr
 					);
+			handle->profiler.start_timer_sync("accumulate_in_fp64");
 			accumulate_in_fp64(c_fp64_ptr, c_fp32_ptr, m * n, handle->cuda_stream);
+			handle->profiler.stop_timer_sync("accumulate_in_fp64");
 		}
 	} else {
 		OZTCECGEM_NOT_IMPLEMENTED;
 	}
 
+	handle->profiler.start_timer_sync("copy_result");
 	if (mtk::oztcecgemm::get_output_type(compute_mode) == fp32) {
 		using C_T = float;
 		axby<C_T>(
@@ -462,5 +465,6 @@ int mtk::oztcecgemm::gemm(
 				handle->cuda_stream
 				);
 	}
+	handle->profiler.stop_timer_sync("copy_result");
 	return 0;
 }
