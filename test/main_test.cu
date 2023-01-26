@@ -183,7 +183,7 @@ int main(int argc, char** argv) {
 		mtk::oztcecgemm::fp32_split_3,
 	};
 
-	std::printf("mode,m,n,k,residual,max_rerative,throughput_in_tflops\n");
+	std::printf("mode,m,n,k,residual,max_relative,throughput_in_tflops\n");
 	std::fflush(stdout);
 	for (unsigned i = 8; i <= 14; i++) {
 		const auto N = 1lu << i;
