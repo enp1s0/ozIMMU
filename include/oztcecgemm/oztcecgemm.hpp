@@ -15,7 +15,12 @@ enum operation_t {
 
 enum compute_mode_t {
 	sgemm,
-	fp32_split_3
+	fp32_split_3,
+
+	fp64_int8_6,
+	fp64_int8_7,
+	fp64_int8_8,
+	fp64_int8_9,
 };
 
 enum data_t {

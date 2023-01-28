@@ -22,7 +22,8 @@ enum gemm_t {
 	shgemm_fp16,
 	shgemm_tf32,
 	hsgemm_fp16,
-	hsgemm_tf32
+	hsgemm_tf32,
+	int8tc
 };
 
 template <class T>

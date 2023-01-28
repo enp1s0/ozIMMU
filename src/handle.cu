@@ -154,6 +154,8 @@ std::size_t mtk::oztcecgemm::get_data_size_in_byte(
 		return 2;
 	case mtk::oztcecgemm::original:
 		return 0;
+	case mtk::oztcecgemm::int8:
+		return 1;
 	default:
 		break;
 	}

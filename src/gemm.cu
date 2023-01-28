@@ -375,6 +375,28 @@ void gemm_core(
 						);
 		}
 		break;
+	case mtk::oztcecgemm::detail::int8tc:
+		{
+			const int alpha_i = 1, beta_i = 0;
+			const auto op_A_r = gemm_pair_config.A_id == 0 ? to_cublasOperation_t(op_A) : CUBLAS_OP_T;
+			const auto op_B_r = gemm_pair_config.B_id == 0 ? to_cublasOperation_t(op_B) : CUBLAS_OP_N;
+			const auto type_A_r = gemm_pair_config.A_id == 0 ? type_a : split_config.matrix_A_split_types[gemm_pair_config.A_id];
+			const auto type_B_r = gemm_pair_config.B_id == 0 ? type_b : split_config.matrix_B_split_types[gemm_pair_config.B_id];
+
+			CUTF_CHECK_ERROR(cublasGemmEx(
+						handle->cublas_handle,
+						op_A_r,
+						op_B_r,
+						m, n, k,
+						&alpha_i,
+						a_ptr_r, CUDA_R_8I, lda_r,
+						b_ptr_r, CUDA_R_8I, ldb_r,
+						&beta_i,
+						c_ptr_r, CUDA_R_32I, m,
+						CUBLAS_COMPUTE_32I,
+						CUBLAS_GEMM_DEFAULT_TENSOR_OP
+						));
+		}
 	default:
 		OZTCECGEM_NOT_IMPLEMENTED;
 	}
@@ -401,6 +423,12 @@ int mtk::oztcecgemm::gemm(
 	case mtk::oztcecgemm::fp32_split_3:
 	case mtk::oztcecgemm::sgemm:
 		input_type = mtk::oztcecgemm::fp32;
+		break;
+	case mtk::oztcecgemm::fp64_int8_6:
+	case mtk::oztcecgemm::fp64_int8_7:
+	case mtk::oztcecgemm::fp64_int8_8:
+	case mtk::oztcecgemm::fp64_int8_9:
+		input_type = mtk::oztcecgemm::fp64;
 		break;
 	default:
 		OZTCECGEM_NOT_IMPLEMENTED;
