@@ -406,13 +406,13 @@ int mtk::oztcecgemm::gemm(
 		OZTCECGEM_NOT_IMPLEMENTED;
 	}
 
-	float*  const c_fp32_ptr = reinterpret_cast<float* >(handle->working_memory_ptr);
-	double* const c_fp64_ptr = reinterpret_cast<double*>(c_fp32_ptr + m * n);
-	void*   const working_memory_ptr = c_fp64_ptr + m * n;
-
-	init_fp64_buffer(c_fp64_ptr, m * n, handle->cuda_stream);
-
 	if (input_type == mtk::oztcecgemm::fp32) {
+		float*  const c_fp32_ptr = reinterpret_cast<float* >(handle->working_memory_ptr);
+		double* const c_fp64_ptr = reinterpret_cast<double*>(c_fp32_ptr + m * n);
+		void*   const working_memory_ptr = c_fp64_ptr + m * n;
+
+		init_fp64_buffer(c_fp64_ptr, m * n, handle->cuda_stream);
+
 		split_AB(
 				handle,
 				working_memory_ptr,
@@ -439,32 +439,32 @@ int mtk::oztcecgemm::gemm(
 			accumulate_in_fp64(c_fp64_ptr, c_fp32_ptr, m * n, handle->cuda_stream);
 			handle->profiler.stop_timer_sync("accumulate_in_fp64");
 		}
+
+		handle->profiler.start_timer_sync("copy_result");
+		if (mtk::oztcecgemm::get_output_type(compute_mode) == fp32) {
+			using C_T = float;
+			axby<C_T>(
+					m, n,
+					*reinterpret_cast<const C_T*>(alpha),
+					c_fp64_ptr,
+					*reinterpret_cast<const C_T*>(beta),
+					reinterpret_cast<C_T*>(c_ptr), ldc,
+					handle->cuda_stream
+					);
+		} else {
+			using C_T = double;
+			axby<C_T>(
+					m, n,
+					*reinterpret_cast<const C_T*>(alpha),
+					c_fp64_ptr,
+					*reinterpret_cast<const C_T*>(beta),
+					reinterpret_cast<C_T*>(c_ptr), ldc,
+					handle->cuda_stream
+					);
+		}
+		handle->profiler.stop_timer_sync("copy_result");
 	} else {
 		OZTCECGEM_NOT_IMPLEMENTED;
 	}
-
-	handle->profiler.start_timer_sync("copy_result");
-	if (mtk::oztcecgemm::get_output_type(compute_mode) == fp32) {
-		using C_T = float;
-		axby<C_T>(
-				m, n,
-				*reinterpret_cast<const C_T*>(alpha),
-				c_fp64_ptr,
-				*reinterpret_cast<const C_T*>(beta),
-				reinterpret_cast<C_T*>(c_ptr), ldc,
-				handle->cuda_stream
-				);
-	} else {
-		using C_T = double;
-		axby<C_T>(
-				m, n,
-				*reinterpret_cast<const C_T*>(alpha),
-				c_fp64_ptr,
-				*reinterpret_cast<const C_T*>(beta),
-				reinterpret_cast<C_T*>(c_ptr), ldc,
-				handle->cuda_stream
-				);
-	}
-	handle->profiler.stop_timer_sync("copy_result");
 	return 0;
 }
