@@ -90,6 +90,7 @@ void gemm_eval_core(
 	std::fflush(stdout);
 }
 
+template <class T>
 void gemm_eval(
 		const mtk::oztcecgemm::gemm_list_t& gemm_list
 		) {
@@ -109,7 +110,8 @@ void gemm_eval(
 				mtk::oztcecgemm::get_output_type(std::get<3>(gemm))));
 	}
 
-	auto mat_AB_uptr = cutf::memory::get_device_unique_ptr<float>(max_AB_count);
+
+	auto mat_AB_uptr = cutf::memory::get_device_unique_ptr<T>(max_AB_count);
 	auto mat_C_uptr  = cutf::memory::get_device_unique_ptr<std::uint8_t>(max_C_size);
 
 	auto cugen = cutf::curand::get_curand_unique_ptr(CURAND_RNG_PSEUDO_MT19937);
@@ -134,8 +136,8 @@ void gemm_eval(
 						const std::size_t m,
 						const std::size_t n,
 						const std::size_t k,
-						const float* const a_ptr, const std::size_t lda,
-						const float* const b_ptr, const std::size_t ldb,
+						const T* const a_ptr, const std::size_t lda,
+						const T* const b_ptr, const std::size_t ldb,
 						void* const c_ptr, const std::size_t ldc
 									) {
 					if (mtk::oztcecgemm::get_output_type(mode) == mtk::oztcecgemm::fp32) {
@@ -176,19 +178,20 @@ void gemm_eval(
 }
 
 int main(int argc, char** argv) {
-	mtk::oztcecgemm::gemm_list_t gemm_list;
+	std::printf("mode,m,n,k,residual,max_relative,throughput_in_tflops\n");
+	std::fflush(stdout);
 
-	const std::vector<mtk::oztcecgemm::compute_mode_t> modes = {
+	// SGEMM+
+	mtk::oztcecgemm::gemm_list_t fp32in_gemm_list;
+	const std::vector<mtk::oztcecgemm::compute_mode_t> fp32in_modes = {
 		mtk::oztcecgemm::sgemm,
 		mtk::oztcecgemm::fp32_split_3,
 	};
 
-	std::printf("mode,m,n,k,residual,max_relative,throughput_in_tflops\n");
-	std::fflush(stdout);
-	for (unsigned i = 8; i <= 14; i++) {
+	for (unsigned i = 8; i <= 10; i++) {
 		const auto N = 1lu << i;
-		for (const auto mode : modes) {
-			gemm_list.push_back(std::tuple<std::size_t, std::size_t, std::size_t, mtk::oztcecgemm::compute_mode_t>(
+		for (const auto mode : fp32in_modes) {
+			fp32in_gemm_list.push_back(std::tuple<std::size_t, std::size_t, std::size_t, mtk::oztcecgemm::compute_mode_t>(
 						N,
 						N,
 						N,
@@ -196,6 +199,24 @@ int main(int argc, char** argv) {
 						));
 		}
 	}
+	gemm_eval<float>(fp32in_gemm_list);
 
-	gemm_eval(gemm_list);
+	// DGEMM
+	mtk::oztcecgemm::gemm_list_t fp64in_gemm_list;
+	const std::vector<mtk::oztcecgemm::compute_mode_t> fp64in_modes = {
+		mtk::oztcecgemm::fp64_int8_6
+	};
+
+	for (unsigned i = 8; i <= 10; i++) {
+		const auto N = 1lu << i;
+		for (const auto mode : fp64in_modes) {
+			fp64in_gemm_list.push_back(std::tuple<std::size_t, std::size_t, std::size_t, mtk::oztcecgemm::compute_mode_t>(
+						N,
+						N,
+						N,
+						mode
+						));
+		}
+	}
+	gemm_eval<double>(fp64in_gemm_list);
 }
