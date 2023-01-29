@@ -87,6 +87,55 @@ void split_AB(
 	handle->profiler.stop_timer_sync("split_B");
 }
 
+template <class T>
+void split_AB_int8(
+		mtk::oztcecgemm::handle_t handle,
+		void* working_memory_ptr,
+		const mtk::oztcecgemm::operation_t op_A,
+		const mtk::oztcecgemm::operation_t op_B,
+		const std::size_t m,
+		const std::size_t n,
+		const std::size_t k,
+		const T* const a_ptr, const std::size_t lda,
+		T* const a_max_exp_ptr,
+		const T* const b_ptr, const std::size_t ldb,
+		T* const b_max_exp_ptr,
+		const unsigned num_split,
+		const unsigned bits_per_int8
+		) {
+	const auto working_a_ptr = reinterpret_cast<std::int8_t*>(working_memory_ptr);
+
+	handle->profiler.start_timer_sync("split_A");
+	mtk::oztcecgemm::split_int8<T>(
+			working_a_ptr,
+			a_max_exp_ptr,
+			m, k,
+			a_ptr, lda,
+			op_A,
+			mtk::oztcecgemm::detail::matrix_A,
+			num_split,
+			bits_per_int8,
+			handle->cuda_stream
+			);
+	handle->profiler.stop_timer_sync("split_A");
+
+	const auto working_b_ptr = reinterpret_cast<std::int8_t*>(working_memory_ptr) + m * k * num_split;
+
+	handle->profiler.start_timer_sync("split_B");
+	mtk::oztcecgemm::split_int8<T>(
+			working_b_ptr,
+			b_max_exp_ptr,
+			k, n,
+			b_ptr, ldb,
+			op_B,
+			mtk::oztcecgemm::detail::matrix_B,
+			num_split,
+			bits_per_int8,
+			handle->cuda_stream
+			);
+	handle->profiler.stop_timer_sync("split_B");
+}
+
 cudaDataType_t to_cudaDataType_t(
 		const mtk::oztcecgemm::data_t d
 		) {
@@ -160,8 +209,40 @@ void accumulate_in_fp64(
 			);
 }
 
-__global__ void init_fp64_buffer_kernel(
-		double* const dp_ptr,
+__global__ void accumulate_in_i64_kernel(
+		std::int64_t* const i64_ptr,
+		const std::int32_t* i32_ptr,
+		const std::size_t length,
+		const unsigned mantissa_rshift
+		) {
+	const auto tid = blockIdx.x * blockDim.x + threadIdx.x;
+	if (tid >= length) {
+		return;
+	}
+
+	i64_ptr[tid] += ((static_cast<std::int64_t>(i32_ptr[tid]) << 32) >> mantissa_rshift);
+}
+
+void accumulate_in_i64(
+		std::int64_t* const i64_ptr,
+		const std::int32_t* i32_ptr,
+		const std::size_t length,
+		const unsigned mantissa_rshift,
+		cudaStream_t cuda_stream
+		) {
+	constexpr std::size_t block_size = 256;
+	accumulate_in_i64_kernel
+		<<<(length + block_size - 1) / block_size, block_size, 0, cuda_stream>>>(
+				i64_ptr,
+				i32_ptr,
+				length,
+				mantissa_rshift
+			);
+}
+
+template <class T>
+__global__ void init_accumulator_buffer_kernel(
+		T* const dp_ptr,
 		const std::size_t length
 		) {
 	const auto tid = blockIdx.x * blockDim.x + threadIdx.x;
@@ -172,13 +253,14 @@ __global__ void init_fp64_buffer_kernel(
 	dp_ptr[tid] = 0;
 }
 
-void init_fp64_buffer(
-		double* const dp_ptr,
+template <class T>
+void init_accumulator_buffer(
+		T* const dp_ptr,
 		const std::size_t length,
 		cudaStream_t cuda_stream
 		) {
 	constexpr std::size_t block_size = 256;
-	init_fp64_buffer_kernel
+	init_accumulator_buffer_kernel<T>
 		<<<(length + block_size - 1) / block_size, block_size, 0, cuda_stream>>>(
 				dp_ptr,
 				length
@@ -233,6 +315,61 @@ void axby(
 			);
 }
 
+__global__ void axby_kernel(
+		const std::size_t m,
+		const std::size_t n,
+		const double a,
+		const std::int64_t* const x_ptr,
+		const double b,
+		double* const y_ptr,
+		const std::size_t ldy,
+		const double* const a_max_exp_ptr,
+		const double* const b_max_exp_ptr
+		) {
+	const auto tid = blockIdx.x * blockDim.x + threadIdx.x;
+	if (tid >= m * n) {
+		return;
+	}
+
+	const auto mi = tid % m;
+	const auto ni = tid / m;
+
+	const auto memory_index = ni * ldy + mi;
+
+	const auto x = static_cast<double>(x_ptr[tid]) / (1lu << 44) * a_max_exp_ptr[mi] * b_max_exp_ptr[ni];
+
+	if (b != 0) {
+		y_ptr[memory_index] = a * x + b * y_ptr[memory_index];
+	} else {
+		y_ptr[memory_index] = a * x;
+	}
+}
+
+void axby(
+		const std::size_t m,
+		const std::size_t n,
+		const double a,
+		const std::int64_t* const x_ptr,
+		const double b,
+		double* const y_ptr,
+		const std::size_t ldy,
+		const double* const a_max_exp_ptr,
+		const double* const b_max_exp_ptr,
+		cudaStream_t cuda_stream
+		) {
+	constexpr std::size_t block_size = 256;
+	axby_kernel
+		<<<(m * n + block_size - 1) / block_size, block_size, 0, cuda_stream>>>(
+				m, n,
+				a,
+				x_ptr,
+				b,
+				y_ptr, ldy,
+				a_max_exp_ptr,
+				b_max_exp_ptr
+			);
+}
+
 void gemm_core(
 		mtk::oztcecgemm::handle_t handle,
 		const mtk::oztcecgemm::operation_t op_A,
@@ -242,7 +379,7 @@ void gemm_core(
 		const std::size_t k,
 		const void* const a_ptr, const std::size_t lda, const mtk::oztcecgemm::data_t type_a,
 		const void* const b_ptr, const std::size_t ldb, const mtk::oztcecgemm::data_t type_b,
-		float* const c_ptr,
+		void* const c_ptr,
 		const mtk::oztcecgemm::detail::gemm_pair_config_t& gemm_pair_config,
 		const mtk::oztcecgemm::compute_mode_t compute_mode,
 		void* const working_memory_ptr
@@ -439,7 +576,7 @@ int mtk::oztcecgemm::gemm(
 		double* const c_fp64_ptr = reinterpret_cast<double*>(c_fp32_ptr + m * n);
 		void*   const working_memory_ptr = c_fp64_ptr + m * n;
 
-		init_fp64_buffer(c_fp64_ptr, m * n, handle->cuda_stream);
+		init_accumulator_buffer<double>(c_fp64_ptr, m * n, handle->cuda_stream);
 
 		split_AB(
 				handle,
@@ -491,6 +628,80 @@ int mtk::oztcecgemm::gemm(
 					);
 		}
 		handle->profiler.stop_timer_sync("copy_result");
+	} else if (input_type == mtk::oztcecgemm::fp64) {
+		if (
+				compute_mode == mtk::oztcecgemm::fp64_int8_6 ||
+				compute_mode == mtk::oztcecgemm::fp64_int8_7 ||
+				compute_mode == mtk::oztcecgemm::fp64_int8_8 ||
+				compute_mode == mtk::oztcecgemm::fp64_int8_9) {
+			const unsigned num_split = mtk::oztcecgemm::detail::get_split_config(compute_mode).matrix_A_split_types.size() - 1;
+			const auto bits_per_int8 = std::min<unsigned>(7u, std::ceil((31 - std::log2(k) / 2.)));
+
+			std::int32_t* const c_i32_ptr = reinterpret_cast<std::int32_t*>(handle->working_memory_ptr);
+			std::int64_t* const c_i64_ptr = reinterpret_cast<std::int64_t*>(c_i32_ptr + m * n);
+			double* const a_max_exp_ptr = reinterpret_cast<double*>(c_i64_ptr + m * n);
+			double* const b_max_exp_ptr = a_max_exp_ptr + m;
+			void* const working_memory_ptr = b_max_exp_ptr + n;
+
+			init_accumulator_buffer<std::int64_t>(
+					c_i64_ptr,
+					m * n,
+					handle->cuda_stream
+					);
+
+			split_AB_int8<double>(
+					handle,
+					working_memory_ptr,
+					op_A,
+					op_B,
+					m, n, k,
+					reinterpret_cast<const double*>(a_ptr), lda,
+					a_max_exp_ptr,
+					reinterpret_cast<const double*>(b_ptr), ldb,
+					b_max_exp_ptr,
+					num_split,
+					bits_per_int8
+					);
+
+			const auto& gemm_pair_config_list = mtk::oztcecgemm::detail::get_split_config(compute_mode).gemm_pair_config_list;
+			for (const auto& gemm_pair_config : gemm_pair_config_list) {
+				gemm_core(
+						handle,
+						op_A, op_B,
+						m, n, k,
+						a_ptr, lda, input_type,
+						b_ptr, ldb, input_type,
+						c_i32_ptr,
+						gemm_pair_config,
+						compute_mode,
+						working_memory_ptr
+						);
+				handle->profiler.start_timer_sync("accumulate_in_i64");
+				accumulate_in_i64(
+						c_i64_ptr,
+						c_i32_ptr,
+						m * n,
+						bits_per_int8 * (gemm_pair_config.A_id + gemm_pair_config.B_id - 2),
+						handle->cuda_stream
+						);
+				handle->profiler.stop_timer_sync("accumulate_in_i64");
+			}
+			using C_T = double;
+			handle->profiler.start_timer_sync("copy_result");
+			axby(
+					m, n,
+					*reinterpret_cast<const C_T*>(alpha),
+					c_i64_ptr,
+					*reinterpret_cast<const C_T*>(beta),
+					reinterpret_cast<C_T*>(c_ptr), ldc,
+					a_max_exp_ptr,
+					b_max_exp_ptr,
+					handle->cuda_stream
+					);
+			handle->profiler.stop_timer_sync("copy_result");
+		} else {
+			OZTCECGEM_NOT_IMPLEMENTED;
+		}
 	} else {
 		OZTCECGEM_NOT_IMPLEMENTED;
 	}

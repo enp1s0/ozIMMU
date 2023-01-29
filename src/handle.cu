@@ -97,10 +97,19 @@ void mtk::oztcecgemm::reallocate_working_memory(
 		const auto working_memory_B = calculate_working_memory_size(k, n, mode, detail::matrix_B);
 		const auto working_memory_C_fp32 = m * n * mtk::oztcecgemm::get_data_size_in_byte(fp32);
 		const auto working_memory_C_fp64 = m * n * mtk::oztcecgemm::get_data_size_in_byte(fp64);
+		std::size_t etc = 0;
+		if (
+				mode == mtk::oztcecgemm::fp64_int8_6 ||
+				mode == mtk::oztcecgemm::fp64_int8_7 ||
+				mode == mtk::oztcecgemm::fp64_int8_8 ||
+				mode == mtk::oztcecgemm::fp64_int8_9
+			 ) {
+			etc = (m + n) * mtk::oztcecgemm::get_data_size_in_byte(fp64);
+		}
 
 		max_working_memory_size = std::max(
 				max_working_memory_size,
-				working_memory_A + working_memory_B + working_memory_C_fp32 + working_memory_C_fp64
+				working_memory_A + working_memory_B + working_memory_C_fp32 + working_memory_C_fp64 + etc
 				);
 	}
 
@@ -121,6 +130,14 @@ std::string mtk::oztcecgemm::get_compute_mode_name_str(
 		return "fp32_split_3";
 	case mtk::oztcecgemm::sgemm:
 		return "sgemm";
+	case mtk::oztcecgemm::fp64_int8_6:
+		return "fp64_int8_6";
+	case mtk::oztcecgemm::fp64_int8_7:
+		return "fp64_int8_7";
+	case mtk::oztcecgemm::fp64_int8_8:
+		return "fp64_int8_8";
+	case mtk::oztcecgemm::fp64_int8_9:
+		return "fp64_int8_9";
 	default:
 		break;
 	}
@@ -133,8 +150,14 @@ mtk::oztcecgemm::data_t mtk::oztcecgemm::get_output_type(
 	switch (compute_mode) {
 	case mtk::oztcecgemm::sgemm:
 		return mtk::oztcecgemm::fp32;
+
 	case mtk::oztcecgemm::fp32_split_3:
+	case mtk::oztcecgemm::fp64_int8_6:
+	case mtk::oztcecgemm::fp64_int8_7:
+	case mtk::oztcecgemm::fp64_int8_8:
+	case mtk::oztcecgemm::fp64_int8_9:
 		return mtk::oztcecgemm::fp64;
+
 	default:
 		break;
 	}
