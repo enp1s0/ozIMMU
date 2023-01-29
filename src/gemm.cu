@@ -534,6 +534,7 @@ void gemm_core(
 						CUBLAS_GEMM_DEFAULT_TENSOR_OP
 						));
 		}
+		break;
 	default:
 		OZTCECGEM_NOT_IMPLEMENTED;
 	}
