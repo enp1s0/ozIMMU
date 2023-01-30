@@ -7,6 +7,8 @@
 
 constexpr unsigned test_count = 100;
 
+constexpr unsigned long long seed = 0;
+
 inline mtk::mateval::layout_t conv_layout_oz2mateval(const mtk::oztcecgemm::operation_t op) {
 	if (op == mtk::oztcecgemm::op_n) {
 		return mtk::mateval::col_major;
@@ -110,12 +112,11 @@ void gemm_eval(
 				mtk::oztcecgemm::get_output_type(std::get<3>(gemm))));
 	}
 
-
 	auto mat_AB_uptr = cutf::memory::get_device_unique_ptr<T>(max_AB_count);
 	auto mat_C_uptr  = cutf::memory::get_device_unique_ptr<std::uint8_t>(max_C_size);
 
 	auto cugen = cutf::curand::get_curand_unique_ptr(CURAND_RNG_PSEUDO_MT19937);
-	CUTF_CHECK_ERROR(curandSetPseudoRandomGeneratorSeed(*cugen.get(), 0));
+	CUTF_CHECK_ERROR(curandSetPseudoRandomGeneratorSeed(*cugen.get(), seed));
 	CUTF_CHECK_ERROR(cutf::curand::generate_normal(*cugen.get(), mat_AB_uptr.get(), max_AB_count, 0, 1));
 
 	for (const auto gemm : gemm_list) {
