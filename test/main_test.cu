@@ -205,10 +205,13 @@ int main(int argc, char** argv) {
 	// DGEMM
 	mtk::oztcecgemm::gemm_list_t fp64in_gemm_list;
 	const std::vector<mtk::oztcecgemm::compute_mode_t> fp64in_modes = {
-		mtk::oztcecgemm::fp64_int8_6
+		mtk::oztcecgemm::fp64_int8_6,
+		mtk::oztcecgemm::fp64_int8_7,
+		mtk::oztcecgemm::fp64_int8_8,
+		mtk::oztcecgemm::fp64_int8_9,
 	};
 
-	for (unsigned i = 8; i <= 10; i++) {
+	for (unsigned i = 10; i <= 14; i++) {
 		const auto N = 1lu << i;
 		for (const auto mode : fp64in_modes) {
 			fp64in_gemm_list.push_back(std::tuple<std::size_t, std::size_t, std::size_t, mtk::oztcecgemm::compute_mode_t>(
