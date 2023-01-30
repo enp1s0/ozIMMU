@@ -191,7 +191,8 @@ void split_int8_A(
 		const INPUT_T* const in_ptr,
 		const std::size_t ld,
 		const unsigned num_split,
-		const unsigned mantissa_length
+		const unsigned mantissa_length,
+		cudaStream_t cuda_stream
 		) {
 	const dim3 block_size = 256;
 	const dim3 grid_size = m;
@@ -200,7 +201,7 @@ void split_int8_A(
 
 	using MANTISSA_T = __int128_t;
 	split_int8_kernel<INPUT_T, MANTISSA_T>
-		<<<grid_size, block_size>>>(
+		<<<grid_size, block_size, 0, cuda_stream>>>(
 				out_ptr,
 				max_exp_ptr,
 				m, n,
@@ -282,17 +283,19 @@ void mtk::oztcecgemm::split_int8(
 				m, n,
 				in_ptr, ld,
 				num_split,
-				bits_per_int8
+				bits_per_int8,
+				cuda_stream
 				);
 	} else {
 		split_int8_A(
 				out_ptr,
 				max_exp_ptr,
 				op == mtk::oztcecgemm::op_n ? mtk::oztcecgemm::op_t : mtk::oztcecgemm::op_n,
-				m, n,
+				n, m,
 				in_ptr, ld,
 				num_split,
-				bits_per_int8
+				bits_per_int8,
+				cuda_stream
 				);
 	}
 }
