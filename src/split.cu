@@ -199,7 +199,7 @@ void split_int8_A(
 
 	const bool is_col_major = op == mtk::oztcecgemm::op_n;
 
-	using MANTISSA_T = __int128_t;
+	using MANTISSA_T = __uint128_t;
 	split_int8_kernel<INPUT_T, MANTISSA_T>
 		<<<grid_size, block_size, 0, cuda_stream>>>(
 				out_ptr,
