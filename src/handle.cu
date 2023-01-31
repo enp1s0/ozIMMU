@@ -156,6 +156,7 @@ mtk::oztcecgemm::data_t mtk::oztcecgemm::get_output_type(
 	case mtk::oztcecgemm::fp64_int8_7:
 	case mtk::oztcecgemm::fp64_int8_8:
 	case mtk::oztcecgemm::fp64_int8_9:
+	case mtk::oztcecgemm::dgemm:
 		return mtk::oztcecgemm::fp64;
 
 	default:

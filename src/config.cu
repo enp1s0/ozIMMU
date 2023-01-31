@@ -11,6 +11,12 @@ mtk::oztcecgemm::detail::split_config_t mtk::oztcecgemm::detail::get_split_confi
 			{original},
 			{{0, 0, detail::cublas_sgemm}}
 		};
+	case mtk::oztcecgemm::dgemm:
+		return split_config_t {
+			{original},
+			{original},
+			{{0, 0, detail::cublas_dgemm}}
+		};
 	case mtk::oztcecgemm::fp32_split_3:
 		return split_config_t {
 			{original, fp16, fp32},
@@ -59,6 +65,7 @@ std::string mtk::oztcecgemm::detail::gemm_mode_str(
 #define GEMM_MODE_STR_CASE(mode) case mode: return #mode
 	switch (gemm_mode) {
 	GEMM_MODE_STR_CASE(cublas_sgemm);
+	GEMM_MODE_STR_CASE(cublas_dgemm);
 	GEMM_MODE_STR_CASE(cublas_tf32 );
 	GEMM_MODE_STR_CASE(cublas_fp16 );
 	GEMM_MODE_STR_CASE(cublas_bf16 );

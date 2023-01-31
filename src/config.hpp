@@ -13,6 +13,7 @@ enum matrix_t {
 };
 
 enum gemm_t {
+	cublas_dgemm,
 	cublas_sgemm,
 	cublas_tf32,
 	cublas_fp16,
