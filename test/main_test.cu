@@ -16,6 +16,39 @@ inline mtk::mateval::layout_t conv_layout_oz2mateval(const mtk::oztcecgemm::oper
 	return mtk::mateval::row_major;
 }
 
+template <class T>
+__global__ void adjust_urand_kernel(
+		T* const ptr,
+		const T min_urand,
+		const T max_urand,
+		const std::size_t n
+		) {
+	const auto tid = threadIdx.x + blockDim.x * blockIdx.x;
+	if (tid >= n) {
+		return;
+	}
+
+	const auto v = ptr[tid];
+	ptr[tid] = v * (max_urand - min_urand) + min_urand;
+}
+
+template <class T>
+void adjust_urand(
+		T* const ptr,
+		const T min_urand,
+		const T max_urand,
+		const std::size_t n
+		) {
+	const auto block_size = 256lu;
+	const auto grid_size = (n + block_size - 1) / block_size;
+
+	adjust_urand_kernel<T><<<grid_size, block_size>>>(
+			ptr,
+			min_urand, max_urand,
+			n
+			);
+}
+
 template <class C_T, class AB_T, class MATMUL_FUNC>
 void gemm_eval_core(
 		const mtk::oztcecgemm::operation_t op_a,
@@ -117,7 +150,9 @@ void gemm_eval(
 
 	auto cugen = cutf::curand::get_curand_unique_ptr(CURAND_RNG_PSEUDO_MT19937);
 	CUTF_CHECK_ERROR(curandSetPseudoRandomGeneratorSeed(*cugen.get(), seed));
-	CUTF_CHECK_ERROR(cutf::curand::generate_normal(*cugen.get(), mat_AB_uptr.get(), max_AB_count, 0, 1));
+	//CUTF_CHECK_ERROR(cutf::curand::generate_normal(*cugen.get(), mat_AB_uptr.get(), max_AB_count, 0, 1));
+	CUTF_CHECK_ERROR(cutf::curand::generate_uniform(*cugen.get(), mat_AB_uptr.get(), max_AB_count));
+	adjust_urand<T>(mat_AB_uptr.get(), -10.0, 10.0, max_AB_count);
 
 	for (const auto gemm : gemm_list) {
 		const auto m = std::get<0>(gemm);
@@ -205,6 +240,7 @@ int main(int argc, char** argv) {
 	// DGEMM
 	mtk::oztcecgemm::gemm_list_t fp64in_gemm_list;
 	const std::vector<mtk::oztcecgemm::compute_mode_t> fp64in_modes = {
+		mtk::oztcecgemm::dgemm,
 		mtk::oztcecgemm::fp64_int8_6,
 		mtk::oztcecgemm::fp64_int8_7,
 		mtk::oztcecgemm::fp64_int8_8,
