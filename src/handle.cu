@@ -130,6 +130,8 @@ std::string mtk::oztcecgemm::get_compute_mode_name_str(
 		return "fp32_split_3";
 	case mtk::oztcecgemm::sgemm:
 		return "sgemm";
+	case mtk::oztcecgemm::dgemm:
+		return "dgemm";
 	case mtk::oztcecgemm::fp64_int8_6:
 		return "fp64_int8_6";
 	case mtk::oztcecgemm::fp64_int8_7:
