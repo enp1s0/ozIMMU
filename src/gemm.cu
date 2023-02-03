@@ -220,7 +220,7 @@ __global__ void accumulate_in_i64_kernel(
 		return;
 	}
 
-	i64_ptr[tid] += ((static_cast<std::int64_t>(i32_ptr[tid]) << 32) >> mantissa_rshift);
+	i64_ptr[tid] += ((static_cast<std::int64_t>(i32_ptr[tid]) << 32) / (1l << mantissa_rshift));
 }
 
 void accumulate_in_i64(
@@ -336,7 +336,7 @@ __global__ void axby_kernel(
 
 	const auto memory_index = ni * ldy + mi;
 
-	const auto x = static_cast<double>(x_ptr[tid]) / (1lu << 44) * a_max_exp_ptr[mi] * b_max_exp_ptr[ni];
+	const auto x = static_cast<double>(x_ptr[tid]) / (1l << 44) * a_max_exp_ptr[mi] * b_max_exp_ptr[ni];
 
 	if (b != 0) {
 		y_ptr[memory_index] = a * x + b * y_ptr[memory_index];
