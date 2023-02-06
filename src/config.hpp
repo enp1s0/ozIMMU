@@ -13,6 +13,7 @@ enum matrix_t {
 };
 
 enum gemm_t {
+	cublas_dgemm,
 	cublas_sgemm,
 	cublas_tf32,
 	cublas_fp16,
@@ -22,7 +23,8 @@ enum gemm_t {
 	shgemm_fp16,
 	shgemm_tf32,
 	hsgemm_fp16,
-	hsgemm_tf32
+	hsgemm_tf32,
+	int8tc
 };
 
 template <class T>
