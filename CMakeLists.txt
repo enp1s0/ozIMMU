@@ -38,6 +38,7 @@ target_include_directories(${lib_name} PUBLIC ${INCDIR})
 target_include_directories(${lib_name} PUBLIC ${SRCDIR}/cutf/include)
 target_include_directories(${lib_name} PUBLIC ${SRCDIR}/shgemm/include)
 target_include_directories(${lib_name} PUBLIC ${SRCDIR}/cuMpSGEMM/include)
+target_include_directories(${lib_name} PUBLIC ${SRCDIR}/matfile/include)
 
 target_link_libraries(${lib_name} PRIVATE
 	cuda
