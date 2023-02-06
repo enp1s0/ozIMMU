@@ -89,7 +89,7 @@ __global__ void split_2_no_smem_kernel(
 			n,
 			(col_major ? ld : 1),
 			smem
-			);
+			) * 2;
 	const auto sigma = max_exp * 2 * 3 / 4 * two_to_alpha;
 
 	for (unsigned i = threadIdx.x; i < n; i += blockDim.x) {
@@ -157,7 +157,7 @@ __global__ void split_int8_kernel(
 			n,
 			(col_major ? ld : 1),
 			smem
-			);
+			) * 2;
 
 	const auto N = m * n;
 	for (unsigned i = threadIdx.x; i < n; i += blockDim.x) {
