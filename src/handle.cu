@@ -1,3 +1,4 @@
+#include <cutf/device.hpp>
 #include "handle.hpp"
 #include "config.hpp"
 #include "utils.hpp"
@@ -9,11 +10,20 @@ int mtk::oztcecgemm::create(
 	// Initialize cuBLAS handler
 	CUTF_CHECK_ERROR(cublasCreate(&(handle->cublas_handle)));
 
-	// Initialize SHGEMM handler
-	mtk::shgemm::create(handle->shgemm_handle);
+	int cc_major, cc_minor;
+	CUTF_CHECK_ERROR(cudaDeviceGetAttribute(&cc_major, cudaDevAttrComputeCapabilityMajor, 0));
+	CUTF_CHECK_ERROR(cudaDeviceGetAttribute(&cc_minor, cudaDevAttrComputeCapabilityMinor, 0));
+	const auto cc = cc_major * 10 + cc_minor;
 
-	// Initialize cuMpSGEMM handler
-	cumpsgemm::create(handle->cumpsgemm_handle);
+	if (cc >= 80) {
+		// Initialize SHGEMM handler
+		mtk::shgemm::create(handle->shgemm_handle);
+
+		// Initialize cuMpSGEMM handler
+		cumpsgemm::create(handle->cumpsgemm_handle);
+	} else {
+		std::fprintf(stderr, "[OZTCECGEMM warning] CC is lower than 80. SHGEMM and cuMpSGEMM are not available.\n");
+	}
 
 	// Disable profiling by default
 	mtk::oztcecgemm::disable_profiling(*h);
