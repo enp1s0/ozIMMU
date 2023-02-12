@@ -4,7 +4,6 @@
 #include <cutf/memory.hpp>
 #include <cutf/curand.hpp>
 #include <mateval/comparison_cuda.hpp>
-#include <ptcsv.hpp>
 
 constexpr unsigned test_count = 100;
 
@@ -236,13 +235,17 @@ std::vector<mtk::oztcecgemm::compute_mode_t> get_compute_mode_list_from_argv(
 	std::vector<mtk::oztcecgemm::compute_mode_t> mode_list;
 
 	for (std::size_t i = 0; i < count; i++) {
+		bool added = false;
 		for (const auto m : get_supported_compute_mode()) {
 			if (std::string(argv[i]) == mtk::oztcecgemm::get_compute_mode_name_str(m)) {
 				mode_list.push_back(m);
-				continue;
+				added = true;
+				break;
 			}
 		}
-		std::fprintf(stderr, "Warning: Unknown compute mode \"%s\"\n", argv[i]);
+		if (!added) {
+			std::fprintf(stderr, "Warning: Unknown compute mode \"%s\"\n", argv[i]);
+		}
 	}
 
 	return mode_list;
