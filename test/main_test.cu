@@ -418,7 +418,7 @@ void print_usage(
 
 	std::printf(
 			"Usage:\n"
-			"%s file [/path/to/A.matrix] [/path/to/B.matrix] [/path/to/Ref.matrix] [Computing mode list]\n"
+			"%s matfile [/path/to/A.matrix] [/path/to/B.matrix] [/path/to/Ref.matrix] [Computing mode list]\n"
 			"%s [urand01|normal01] [seq|exp2] [start_N] [end_N] [interval_N] [Computing mode list]\n"
 			"Compute modes:\n"
 			" %s\n",
@@ -436,7 +436,7 @@ int main(int argc, char** argv) {
 	}
 
 	const auto input_mode = std::string(argv[1]);
-	if (input_mode == "file") {
+	if (input_mode == "matfile") {
 		if (argc <= 5) {
 			print_usage(argv[0]);
 			return 1;
