@@ -4,6 +4,7 @@
 #include <cutf/memory.hpp>
 #include <cutf/curand.hpp>
 #include <mateval/comparison_cuda.hpp>
+#include <matfile/matfile.hpp>
 
 constexpr unsigned test_count = 100;
 
@@ -216,6 +217,162 @@ void gemm_eval(
 	mtk::oztcecgemm::destroy(oztcecgemm_handle);
 }
 
+template <class SRC_T, class DST_T>
+__global__ void vector_copy_kernel(
+		DST_T* const dst_ptr,
+		const SRC_T* const src_ptr,
+		const std::size_t N
+		) {
+	const auto tid = threadIdx.x + blockIdx.x * blockDim.x;
+	if (tid >= N) {
+		return;
+	}
+
+	dst_ptr[tid] = src_ptr[tid];
+}
+
+template <class DEVICE_T>
+void matfile_to_device_memory(
+		DEVICE_T* const d_ptr,
+		const std::string matfile_path
+		) {
+	std::size_t m, n;
+	mtk::matfile::load_size(m, n, matfile_path);
+	const auto dtype = mtk::matfile::load_dtype(matfile_path);
+
+	auto h_mat_uptr = cutf::memory::get_host_unique_ptr<std::uint8_t>(m * n * mtk::matfile::get_dtype_size(dtype));
+
+	mtk::matfile::load_dense(
+			h_mat_uptr.get(),
+			m,
+			matfile_path
+			);
+
+	const std::size_t block_size = 256;
+	const std::size_t grid_size = (m * n + block_size - 1) / block_size;
+
+	if (dtype == mtk::matfile::fp32) {
+		vector_copy_kernel<<<grid_size, block_size>>>(
+				d_ptr,
+				reinterpret_cast<float*>(h_mat_uptr.get()),
+				m * n
+				);
+	} else if (dtype == mtk::matfile::fp64) {
+		vector_copy_kernel<<<grid_size, block_size>>>(
+				d_ptr,
+				reinterpret_cast<double*>(h_mat_uptr.get()),
+				m * n
+				);
+	} else {
+		vector_copy_kernel<<<grid_size, block_size>>>(
+				d_ptr,
+				reinterpret_cast<long double*>(h_mat_uptr.get()),
+				m * n
+				);
+	}
+}
+
+template <class T>
+void gemm_eval_matfile(
+		const mtk::oztcecgemm::gemm_list_t& gemm_list,
+		const std::string matfile_A_path,
+		const std::string matfile_B_path,
+		const std::string matfile_C_path
+		) {
+	mtk::oztcecgemm::handle_t oztcecgemm_handle;
+	mtk::oztcecgemm::create(&oztcecgemm_handle);
+	mtk::oztcecgemm::reallocate_working_memory(oztcecgemm_handle, gemm_list);
+
+	std::size_t max_AB_count = 0;
+	std::size_t max_C_size = 0;
+	for (const auto gemm : gemm_list) {
+		const auto m = std::get<0>(gemm);
+		const auto n = std::get<1>(gemm);
+		const auto k = std::get<2>(gemm);
+		max_AB_count = std::max(max_AB_count, m * k + k * n);
+		max_C_size  = std::max(max_C_size , m * n *
+				mtk::oztcecgemm::get_data_size_in_byte(
+				mtk::oztcecgemm::get_output_type(std::get<3>(gemm))));
+	}
+
+	auto mat_AB_uptr = cutf::memory::get_device_unique_ptr<T>(max_AB_count);
+	auto mat_C_uptr  = cutf::memory::get_device_unique_ptr<std::uint8_t>(max_C_size);
+	auto mat_ref_uptr  = cutf::memory::get_host_unique_ptr<std::uint8_t>(max_C_size);
+
+
+	for (const auto gemm : gemm_list) {
+		const auto m = std::get<0>(gemm);
+		const auto n = std::get<1>(gemm);
+		const auto k = std::get<2>(gemm);
+		const auto mode = std::get<3>(gemm);
+
+		const auto a_ptr = mat_AB_uptr.get();
+		const auto b_ptr = mat_AB_uptr.get() + m * k;
+		const auto c_ptr = mat_C_uptr.get();
+
+		matfile_to_device_memory(a_ptr, matfile_A_path);
+		matfile_to_device_memory(b_ptr, matfile_B_path);
+		mtk::matfile::load_dense(mat_ref_uptr.get(), m, matfile_C_path);
+
+		mtk::mateval::error_map_t error;
+		if (mtk::oztcecgemm::get_output_type(mode) == mtk::oztcecgemm::fp32) {
+			using C_T = float;
+			const C_T alpha = 1, beta = 0;
+			mtk::oztcecgemm::gemm(
+					oztcecgemm_handle,
+					mtk::oztcecgemm::op_n, mtk::oztcecgemm::op_n,
+					m, n, k,
+					&alpha,
+					a_ptr, m,
+					b_ptr, k,
+					&beta,
+					c_ptr, m,
+					mode
+					);
+			error = mtk::mateval::cuda::get_error(
+					mtk::mateval::max_relative_error | mtk::mateval::relative_residual,
+					m, n,
+					mtk::mateval::col_major,
+					mtk::mateval::col_major,
+					c_ptr, m,
+					reinterpret_cast<C_T*>(mat_ref_uptr.get()), m
+					);
+		} else {
+			using C_T = double;
+			const C_T alpha = 1, beta = 0;
+			mtk::oztcecgemm::gemm(
+					oztcecgemm_handle,
+					mtk::oztcecgemm::op_n, mtk::oztcecgemm::op_n,
+					m, n, k,
+					&alpha,
+					a_ptr, m,
+					b_ptr, k,
+					&beta,
+					c_ptr, m,
+					mode
+					);
+			error = mtk::mateval::cuda::get_error(
+					mtk::mateval::max_relative_error | mtk::mateval::relative_residual,
+					m, n,
+					mtk::mateval::col_major,
+					mtk::mateval::col_major,
+					c_ptr, m,
+					reinterpret_cast<C_T*>(mat_ref_uptr.get()), m
+					);
+		}
+
+		std::printf("%s,%lu,%lu,%lu,%e,%e\n",
+				mtk::oztcecgemm::get_compute_mode_name_str(mode).c_str(),
+				m, n, k,
+				error.at(mtk::mateval::relative_residual),
+				error.at(mtk::mateval::max_relative_error)
+				);
+		std::fflush(stdout);
+	}
+
+	mtk::oztcecgemm::destroy(oztcecgemm_handle);
+}
+
 std::vector<mtk::oztcecgemm::compute_mode_t> get_supported_compute_mode() {
 	return std::vector<mtk::oztcecgemm::compute_mode_t>{
 		mtk::oztcecgemm::sgemm,
@@ -289,6 +446,50 @@ int main(int argc, char** argv) {
 		const auto matfile_B_path = std::string(argv[3]);
 		const auto matfile_C_path = std::string(argv[4]);
 		const auto compute_mode_list = get_compute_mode_list_from_argv(argc - 5, argv + 5);
+
+		std::size_t am, an, bm, bn, cm, cn;
+		mtk::matfile::load_size(am, an, matfile_A_path);
+		mtk::matfile::load_size(bm, bn, matfile_B_path);
+		mtk::matfile::load_size(cm, cn, matfile_C_path);
+		if (am != cm || bn != cn || an != bm) {
+			std::fprintf(stderr, "Error: matrix shapes are mismatch: A=(%lu, %lu), B=(%lu, %lu), C=(%lu, %lu)\n",
+					am, an,
+					bm, bn,
+					cm, cn
+					);
+			return 1;
+		}
+
+		mtk::oztcecgemm::gemm_list_t fp32in_gemm_list;
+		mtk::oztcecgemm::gemm_list_t fp64in_gemm_list;
+
+		for (auto compute_mode : compute_mode_list) {
+			if (mtk::oztcecgemm::get_output_type(compute_mode) == mtk::oztcecgemm::fp32) {
+				fp32in_gemm_list.push_back(std::tuple<std::size_t, std::size_t, std::size_t, mtk::oztcecgemm::compute_mode_t>(
+							cm,
+							cn,
+							an,
+							compute_mode
+							));
+			} else {
+				fp64in_gemm_list.push_back(std::tuple<std::size_t, std::size_t, std::size_t, mtk::oztcecgemm::compute_mode_t>(
+							cm,
+							cn,
+							an,
+							compute_mode
+							));
+			}
+		}
+
+		std::printf("mode,m,n,k,residual,max_relative,throughput_in_tflops\n");
+		std::fflush(stdout);
+		if (fp32in_gemm_list.size() != 0) {
+			gemm_eval<float>(fp32in_gemm_list, input_mode);
+		}
+		if (fp64in_gemm_list.size() != 0) {
+			gemm_eval<double>(fp64in_gemm_list, input_mode);
+		}
+
 	} else if (input_mode == "urand01" || input_mode == "normal01") {
 		if (argc <= 6) {
 			print_usage(argv[0]);
