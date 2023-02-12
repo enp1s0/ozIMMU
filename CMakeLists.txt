@@ -38,6 +38,7 @@ target_include_directories(${lib_name} PUBLIC ${INCDIR})
 target_include_directories(${lib_name} PUBLIC ${SRCDIR}/cutf/include)
 target_include_directories(${lib_name} PUBLIC ${SRCDIR}/shgemm/include)
 target_include_directories(${lib_name} PUBLIC ${SRCDIR}/cuMpSGEMM/include)
+target_include_directories(${lib_name} PUBLIC ${SRCDIR}/matfile/include)
 
 target_link_libraries(${lib_name} PRIVATE
 	cuda
@@ -71,6 +72,7 @@ if (${BUILD_TEST})
 		add_executable(${test_out} ${TESTSRCDIR}/${test}_test.cu ${HEADERS})
 		target_include_directories(${test_out} PRIVATE ${INCDIR})
 		target_include_directories(${test_out} PRIVATE ${TESTSRCDIR}/mateval/include)
+		target_include_directories(${test_out} PRIVATE ${TESTSRCDIR}/matfile/include)
 		target_link_libraries(${test_out} PRIVATE oztcecgemm)
 		target_link_libraries(${test_out} PRIVATE
 			CUDA::cublas
