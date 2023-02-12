@@ -4,6 +4,7 @@
 #include <cutf/memory.hpp>
 #include <cutf/curand.hpp>
 #include <mateval/comparison_cuda.hpp>
+#include <ptcsv.hpp>
 
 constexpr unsigned test_count = 100;
 
@@ -127,7 +128,8 @@ void gemm_eval_core(
 
 template <class T>
 void gemm_eval(
-		const mtk::oztcecgemm::gemm_list_t& gemm_list
+		const mtk::oztcecgemm::gemm_list_t& gemm_list,
+		const std::string input_mode
 		) {
 	mtk::oztcecgemm::handle_t oztcecgemm_handle;
 	mtk::oztcecgemm::create(&oztcecgemm_handle);
@@ -150,9 +152,11 @@ void gemm_eval(
 
 	auto cugen = cutf::curand::get_curand_unique_ptr(CURAND_RNG_PSEUDO_MT19937);
 	CUTF_CHECK_ERROR(curandSetPseudoRandomGeneratorSeed(*cugen.get(), seed));
-	//CUTF_CHECK_ERROR(cutf::curand::generate_normal(*cugen.get(), mat_AB_uptr.get(), max_AB_count, 0, 1));
-	CUTF_CHECK_ERROR(cutf::curand::generate_uniform(*cugen.get(), mat_AB_uptr.get(), max_AB_count));
-	adjust_urand<T>(mat_AB_uptr.get(), -10.0, 10.0, max_AB_count);
+	if (input_mode == "normal01") {
+		CUTF_CHECK_ERROR(cutf::curand::generate_normal(*cugen.get(), mat_AB_uptr.get(), max_AB_count, 0, 1));
+	} else {
+		CUTF_CHECK_ERROR(cutf::curand::generate_uniform(*cugen.get(), mat_AB_uptr.get(), max_AB_count));
+	}
 
 	for (const auto gemm : gemm_list) {
 		const auto m = std::get<0>(gemm);
@@ -213,50 +217,126 @@ void gemm_eval(
 	mtk::oztcecgemm::destroy(oztcecgemm_handle);
 }
 
-int main(int argc, char** argv) {
-	std::printf("mode,m,n,k,residual,max_relative,throughput_in_tflops\n");
-	std::fflush(stdout);
-
-	// SGEMM+
-	mtk::oztcecgemm::gemm_list_t fp32in_gemm_list;
-	const std::vector<mtk::oztcecgemm::compute_mode_t> fp32in_modes = {
+std::vector<mtk::oztcecgemm::compute_mode_t> get_supported_compute_mode() {
+	return std::vector<mtk::oztcecgemm::compute_mode_t>{
 		mtk::oztcecgemm::sgemm,
-		mtk::oztcecgemm::fp32_split_3,
-	};
-
-	for (unsigned i = 8; i <= 10; i++) {
-		const auto N = 1lu << i;
-		for (const auto mode : fp32in_modes) {
-			fp32in_gemm_list.push_back(std::tuple<std::size_t, std::size_t, std::size_t, mtk::oztcecgemm::compute_mode_t>(
-						N,
-						N,
-						N,
-						mode
-						));
-		}
-	}
-	gemm_eval<float>(fp32in_gemm_list);
-
-	// DGEMM
-	mtk::oztcecgemm::gemm_list_t fp64in_gemm_list;
-	const std::vector<mtk::oztcecgemm::compute_mode_t> fp64in_modes = {
 		mtk::oztcecgemm::dgemm,
+		mtk::oztcecgemm::fp32_split_3,
 		mtk::oztcecgemm::fp64_int8_6,
 		mtk::oztcecgemm::fp64_int8_7,
 		mtk::oztcecgemm::fp64_int8_8,
 		mtk::oztcecgemm::fp64_int8_9,
 	};
+}
 
-	for (unsigned i = 10; i <= 14; i++) {
-		const auto N = 1lu << i;
-		for (const auto mode : fp64in_modes) {
-			fp64in_gemm_list.push_back(std::tuple<std::size_t, std::size_t, std::size_t, mtk::oztcecgemm::compute_mode_t>(
-						N,
-						N,
-						N,
-						mode
-						));
+std::vector<mtk::oztcecgemm::compute_mode_t> get_compute_mode_list_from_argv(
+		const std::size_t count,
+		char** argv
+		) {
+	std::vector<mtk::oztcecgemm::compute_mode_t> mode_list;
+
+	for (std::size_t i = 0; i < count; i++) {
+		for (const auto m : get_supported_compute_mode()) {
+			if (std::string(argv[i]) == mtk::oztcecgemm::get_compute_mode_name_str(m)) {
+				mode_list.push_back(m);
+				continue;
+			}
 		}
+		std::fprintf(stderr, "Warning: Unknown compute mode \"%s\"\n", argv[i]);
 	}
-	gemm_eval<double>(fp64in_gemm_list);
+
+	return mode_list;
+}
+
+void print_usage(
+		const char* const program_name
+		) {
+	std::string compute_mode_list_str = "";
+	for (const auto& name : get_supported_compute_mode()) {
+		compute_mode_list_str += mtk::oztcecgemm::get_compute_mode_name_str(name) + " ";
+	}
+
+	std::printf(
+			"Usage:\n"
+			"%s file [/path/to/A.matrix] [/path/to/B.matrix] [/path/to/Ref.matrix] [Computing mode list]\n"
+			"%s [urand01|normal01] [seq|exp2] [start_N] [end_N] [interval_N] [Computing mode list]\n"
+			"Compute modes:\n"
+			" %s\n",
+			program_name,
+			program_name,
+			compute_mode_list_str.c_str()
+			);
+}
+
+int main(int argc, char** argv) {
+
+	if (argc <= 2) {
+		print_usage(argv[0]);
+		return 1;
+	}
+
+	const auto input_mode = std::string(argv[1]);
+	if (input_mode == "file") {
+		if (argc <= 5) {
+			print_usage(argv[0]);
+			return 1;
+		}
+
+		const auto matfile_A_path = std::string(argv[2]);
+		const auto matfile_B_path = std::string(argv[3]);
+		const auto matfile_C_path = std::string(argv[4]);
+		const auto compute_mode_list = get_compute_mode_list_from_argv(argc - 5, argv + 5);
+	} else if (input_mode == "urand01" || input_mode == "normal01") {
+		if (argc <= 6) {
+			print_usage(argv[0]);
+			return 1;
+		}
+		const auto N_mode = std::string(argv[2]);
+		if (N_mode != "seq" && N_mode != "exp2") {
+			std::fprintf(stderr, "Error: unknown N mode \"%s\"\n", N_mode.c_str());
+			return 1;
+		}
+		const auto min_N = std::stoul(argv[3]);
+		const auto max_N = std::stoul(argv[4]);
+		const auto interval_N = std::stoul(argv[5]);
+		const auto compute_mode_list = get_compute_mode_list_from_argv(argc - 6, argv + 6);
+
+		mtk::oztcecgemm::gemm_list_t fp32in_gemm_list;
+		mtk::oztcecgemm::gemm_list_t fp64in_gemm_list;
+
+		for (std::size_t N = min_N; N <= max_N; N += interval_N) {
+			auto real_N = N;
+			if (N_mode == "exp2") {real_N = 1lu << N;}
+
+			for (auto compute_mode : compute_mode_list) {
+				if (mtk::oztcecgemm::get_output_type(compute_mode) == mtk::oztcecgemm::fp32) {
+					fp32in_gemm_list.push_back(std::tuple<std::size_t, std::size_t, std::size_t, mtk::oztcecgemm::compute_mode_t>(
+								real_N,
+								real_N,
+								real_N,
+								compute_mode
+								));
+				} else {
+					fp64in_gemm_list.push_back(std::tuple<std::size_t, std::size_t, std::size_t, mtk::oztcecgemm::compute_mode_t>(
+								real_N,
+								real_N,
+								real_N,
+								compute_mode
+								));
+				}
+			}
+		}
+
+		std::printf("mode,m,n,k,residual,max_relative,throughput_in_tflops\n");
+		std::fflush(stdout);
+		if (fp32in_gemm_list.size() != 0) {
+			gemm_eval<float>(fp32in_gemm_list, input_mode);
+		}
+		if (fp64in_gemm_list.size() != 0) {
+			gemm_eval<double>(fp64in_gemm_list, input_mode);
+		}
+	} else {
+		std::fprintf(stderr, "Error: Unknown input mode \"%s\"\n", input_mode.c_str());
+		return 1;
+	}
 }
