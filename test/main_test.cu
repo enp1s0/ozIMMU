@@ -242,34 +242,44 @@ void matfile_to_device_memory(
 
 	auto h_mat_uptr = cutf::memory::get_host_unique_ptr<std::uint8_t>(m * n * mtk::matfile::get_dtype_size(dtype));
 
-	mtk::matfile::load_dense(
-			h_mat_uptr.get(),
-			m,
-			matfile_path
-			);
-
 	const std::size_t block_size = 256;
 	const std::size_t grid_size = (m * n + block_size - 1) / block_size;
 
 	if (dtype == mtk::matfile::fp32) {
+		mtk::matfile::load_dense(
+				reinterpret_cast<float*>(h_mat_uptr.get()),
+				m,
+				matfile_path
+				);
 		vector_copy_kernel<<<grid_size, block_size>>>(
 				d_ptr,
 				reinterpret_cast<float*>(h_mat_uptr.get()),
 				m * n
 				);
 	} else if (dtype == mtk::matfile::fp64) {
+		mtk::matfile::load_dense(
+				reinterpret_cast<double*>(h_mat_uptr.get()),
+				m,
+				matfile_path
+				);
 		vector_copy_kernel<<<grid_size, block_size>>>(
 				d_ptr,
 				reinterpret_cast<double*>(h_mat_uptr.get()),
 				m * n
 				);
 	} else {
+		mtk::matfile::load_dense(
+				reinterpret_cast<long double*>(h_mat_uptr.get()),
+				m,
+				matfile_path
+				);
 		vector_copy_kernel<<<grid_size, block_size>>>(
 				d_ptr,
 				reinterpret_cast<long double*>(h_mat_uptr.get()),
 				m * n
 				);
 	}
+	CUTF_CHECK_ERROR(cudaDeviceSynchronize());
 }
 
 template <class T>
@@ -312,12 +322,13 @@ void gemm_eval_matfile(
 
 		matfile_to_device_memory(a_ptr, matfile_A_path);
 		matfile_to_device_memory(b_ptr, matfile_B_path);
-		mtk::matfile::load_dense(mat_ref_uptr.get(), m, matfile_C_path);
 
 		mtk::mateval::error_map_t error;
 		if (mtk::oztcecgemm::get_output_type(mode) == mtk::oztcecgemm::fp32) {
 			using C_T = float;
 			const C_T alpha = 1, beta = 0;
+
+			mtk::matfile::load_dense(reinterpret_cast<C_T*>(mat_ref_uptr.get()), m, matfile_C_path);
 			mtk::oztcecgemm::gemm(
 					oztcecgemm_handle,
 					mtk::oztcecgemm::op_n, mtk::oztcecgemm::op_n,
@@ -334,12 +345,14 @@ void gemm_eval_matfile(
 					m, n,
 					mtk::mateval::col_major,
 					mtk::mateval::col_major,
-					c_ptr, m,
+					reinterpret_cast<C_T*>(c_ptr), m,
 					reinterpret_cast<C_T*>(mat_ref_uptr.get()), m
 					);
 		} else {
 			using C_T = double;
 			const C_T alpha = 1, beta = 0;
+
+			mtk::matfile::load_dense(reinterpret_cast<C_T*>(mat_ref_uptr.get()), m, matfile_C_path);
 			mtk::oztcecgemm::gemm(
 					oztcecgemm_handle,
 					mtk::oztcecgemm::op_n, mtk::oztcecgemm::op_n,
@@ -356,7 +369,7 @@ void gemm_eval_matfile(
 					m, n,
 					mtk::mateval::col_major,
 					mtk::mateval::col_major,
-					c_ptr, m,
+					reinterpret_cast<C_T*>(c_ptr), m,
 					reinterpret_cast<C_T*>(mat_ref_uptr.get()), m
 					);
 		}
@@ -481,13 +494,22 @@ int main(int argc, char** argv) {
 			}
 		}
 
+		std::printf(
+				"matfile test:\n"
+				"A : %s\n"
+				"B : %s\n"
+				"C : %s\n",
+				matfile_A_path.c_str(),
+				matfile_B_path.c_str(),
+				matfile_C_path.c_str()
+				);
 		std::printf("mode,m,n,k,residual,max_relative,throughput_in_tflops\n");
 		std::fflush(stdout);
 		if (fp32in_gemm_list.size() != 0) {
-			gemm_eval<float>(fp32in_gemm_list, input_mode);
+			gemm_eval_matfile<float>(fp32in_gemm_list, matfile_A_path, matfile_B_path, matfile_C_path);
 		}
 		if (fp64in_gemm_list.size() != 0) {
-			gemm_eval<double>(fp64in_gemm_list, input_mode);
+			gemm_eval_matfile<double>(fp64in_gemm_list, matfile_A_path, matfile_B_path, matfile_C_path);
 		}
 
 	} else if (input_mode == "urand01" || input_mode == "normal01") {
