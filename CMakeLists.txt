@@ -72,6 +72,7 @@ if (${BUILD_TEST})
 		add_executable(${test_out} ${TESTSRCDIR}/${test}_test.cu ${HEADERS})
 		target_include_directories(${test_out} PRIVATE ${INCDIR})
 		target_include_directories(${test_out} PRIVATE ${TESTSRCDIR}/mateval/include)
+		target_include_directories(${test_out} PRIVATE ${TESTSRCDIR}/matfile/include)
 		target_link_libraries(${test_out} PRIVATE oztcecgemm)
 		target_link_libraries(${test_out} PRIVATE
 			CUDA::cublas

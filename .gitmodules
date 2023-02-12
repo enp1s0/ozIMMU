@@ -13,3 +13,6 @@
 [submodule "src/matfile"]
 	path = src/matfile
 	url = https://github.com/enp1s0/matfile
+[submodule "test/matfile"]
+	path = test/matfile
+	url = https://github.com/enp1s0/matfile
