@@ -43,6 +43,8 @@ mtk::oztcecgemm::detail::split_config_t mtk::oztcecgemm::detail::get_split_confi
 			std::vector<mtk::oztcecgemm::detail::gemm_pair_config_t> gemm_pair_list;
 			for (int sum = 2; sum <= num_split + 1; sum++) {
 				for (int j = 1; j < sum; j++) {
+					if (j > num_split || sum - j > num_split)
+						continue;
 					gemm_pair_list.push_back({j, sum - j, mtk::oztcecgemm::detail::int8tc});
 				}
 			}
