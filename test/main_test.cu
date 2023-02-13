@@ -327,8 +327,7 @@ template <class T>
 void gemm_eval_matfile(
 		const mtk::oztcecgemm::gemm_list_t& gemm_list,
 		const std::string matfile_A_path,
-		const std::string matfile_B_path,
-		const std::string matfile_C_path
+		const std::string matfile_B_path
 		) {
 	mtk::oztcecgemm::handle_t oztcecgemm_handle;
 	mtk::oztcecgemm::create(&oztcecgemm_handle);
@@ -363,54 +362,55 @@ void gemm_eval_matfile(
 		matfile_to_device_memory(a_ptr, matfile_A_path);
 		matfile_to_device_memory(b_ptr, matfile_B_path);
 
-		mtk::mateval::error_map_t error;
-		if (mtk::oztcecgemm::get_output_type(mode) == mtk::oztcecgemm::fp32) {
-			using C_T = float;
-			const C_T alpha = 1, beta = 0;
-
-			mtk::oztcecgemm::gemm(
-					oztcecgemm_handle,
-					mtk::oztcecgemm::op_n, mtk::oztcecgemm::op_n,
-					m, n, k,
-					&alpha,
-					a_ptr, m,
-					b_ptr, k,
-					&beta,
-					c_ptr, m,
-					mode
-					);
-			error = eval_matfile(
-					matfile_C_path,
-					reinterpret_cast<C_T*>(c_ptr)
-					);
-		} else {
-			using C_T = double;
-			const C_T alpha = 1, beta = 0;
-
-			mtk::oztcecgemm::gemm(
-					oztcecgemm_handle,
-					mtk::oztcecgemm::op_n, mtk::oztcecgemm::op_n,
-					m, n, k,
-					&alpha,
-					a_ptr, m,
-					b_ptr, k,
-					&beta,
-					c_ptr, m,
-					mode
-					);
-			error = eval_matfile(
-					matfile_C_path,
-					reinterpret_cast<C_T*>(c_ptr)
-					);
-		}
-
-		std::printf("%s,%lu,%lu,%lu,%e,%e\n",
-				mtk::oztcecgemm::get_compute_mode_name_str(mode).c_str(),
+		gemm_eval_core(
+				mtk::oztcecgemm::op_n,
+				mtk::oztcecgemm::op_n,
 				m, n, k,
-				error.at(mtk::mateval::relative_residual),
-				error.at(mtk::mateval::max_relative_error)
+				mat_AB_uptr.get(), m,
+				mat_AB_uptr.get() + m * k, k,
+				mat_C_uptr.get(), m,
+				[&](
+						const mtk::oztcecgemm::operation_t op_a,
+						const mtk::oztcecgemm::operation_t op_b,
+						const std::size_t m,
+						const std::size_t n,
+						const std::size_t k,
+						const T* const a_ptr, const std::size_t lda,
+						const T* const b_ptr, const std::size_t ldb,
+						void* const c_ptr, const std::size_t ldc
+									) {
+					if (mtk::oztcecgemm::get_output_type(mode) == mtk::oztcecgemm::fp32) {
+						using C_T = float;
+						const C_T alpha = 1, beta = 0;
+						mtk::oztcecgemm::gemm(
+								oztcecgemm_handle,
+								op_a, op_b,
+								m, n, k,
+								&alpha,
+								a_ptr, lda,
+								b_ptr, ldb,
+								&beta,
+								c_ptr, ldc,
+								mode
+								);
+					} else {
+						using C_T = double;
+						const C_T alpha = 1, beta = 0;
+						mtk::oztcecgemm::gemm(
+								oztcecgemm_handle,
+								op_a, op_b,
+								m, n, k,
+								&alpha,
+								a_ptr, lda,
+								b_ptr, ldb,
+								&beta,
+								c_ptr, ldc,
+								mode
+								);
+					}
+				},
+				mode
 				);
-		std::fflush(stdout);
 	}
 
 	mtk::oztcecgemm::destroy(oztcecgemm_handle);
@@ -461,7 +461,7 @@ void print_usage(
 
 	std::printf(
 			"Usage:\n"
-			"%s matfile [/path/to/A.matrix] [/path/to/B.matrix] [/path/to/Ref.matrix] [Computing mode list]\n"
+			"%s matfile [/path/to/A.matrix] [/path/to/B.matrix] [Computing mode list]\n"
 			"%s [urand01|normal01] [seq|exp2] [start_N] [end_N] [interval_N] [Computing mode list]\n"
 			"Compute modes:\n"
 			" %s\n",
@@ -480,25 +480,23 @@ int main(int argc, char** argv) {
 
 	const auto input_mode = std::string(argv[1]);
 	if (input_mode == "matfile") {
-		if (argc <= 5) {
+		if (argc <= 4) {
 			print_usage(argv[0]);
 			return 1;
 		}
 
 		const auto matfile_A_path = std::string(argv[2]);
 		const auto matfile_B_path = std::string(argv[3]);
-		const auto matfile_C_path = std::string(argv[4]);
 		const auto compute_mode_list = get_compute_mode_list_from_argv(argc - 5, argv + 5);
 
-		std::size_t am, an, bm, bn, cm, cn;
+		std::size_t am, an, bm, bn;
 		mtk::matfile::load_size(am, an, matfile_A_path);
 		mtk::matfile::load_size(bm, bn, matfile_B_path);
-		mtk::matfile::load_size(cm, cn, matfile_C_path);
-		if (am != cm || bn != cn || an != bm) {
+		if (an != bm) {
 			std::fprintf(stderr, "Error: matrix shapes are mismatch: A=(%lu, %lu), B=(%lu, %lu), C=(%lu, %lu)\n",
 					am, an,
 					bm, bn,
-					cm, cn
+					am, bn
 					);
 			return 1;
 		}
@@ -509,15 +507,15 @@ int main(int argc, char** argv) {
 		for (auto compute_mode : compute_mode_list) {
 			if (mtk::oztcecgemm::get_output_type(compute_mode) == mtk::oztcecgemm::fp32) {
 				fp32in_gemm_list.push_back(std::tuple<std::size_t, std::size_t, std::size_t, mtk::oztcecgemm::compute_mode_t>(
-							cm,
-							cn,
+							am,
+							bn,
 							an,
 							compute_mode
 							));
 			} else {
 				fp64in_gemm_list.push_back(std::tuple<std::size_t, std::size_t, std::size_t, mtk::oztcecgemm::compute_mode_t>(
-							cm,
-							cn,
+							am,
+							bn,
 							an,
 							compute_mode
 							));
@@ -527,19 +525,17 @@ int main(int argc, char** argv) {
 		std::printf(
 				"matfile test:\n"
 				"A : %s\n"
-				"B : %s\n"
-				"C : %s\n",
+				"B : %s\n",
 				matfile_A_path.c_str(),
-				matfile_B_path.c_str(),
-				matfile_C_path.c_str()
+				matfile_B_path.c_str()
 				);
 		std::printf("mode,m,n,k,residual,max_relative\n");
 		std::fflush(stdout);
 		if (fp32in_gemm_list.size() != 0) {
-			gemm_eval_matfile<float>(fp32in_gemm_list, matfile_A_path, matfile_B_path, matfile_C_path);
+			gemm_eval_matfile<float>(fp32in_gemm_list, matfile_A_path, matfile_B_path);
 		}
 		if (fp64in_gemm_list.size() != 0) {
-			gemm_eval_matfile<double>(fp64in_gemm_list, matfile_A_path, matfile_B_path, matfile_C_path);
+			gemm_eval_matfile<double>(fp64in_gemm_list, matfile_A_path, matfile_B_path);
 		}
 
 	} else if (input_mode == "urand01" || input_mode == "normal01") {
