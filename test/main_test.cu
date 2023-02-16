@@ -61,7 +61,8 @@ void gemm_eval_core(
 		const AB_T* const b_ptr, const std::size_t ldb,
 		C_T* const c_ptr, const std::size_t ldc,
 		const MATMUL_FUNC matmul_func,
-		const mtk::oztcecgemm::compute_mode_t mode
+		const mtk::oztcecgemm::compute_mode_t mode,
+		const std::string input_mode
 		) {
 	matmul_func(
 			op_a, op_b,
@@ -116,7 +117,8 @@ void gemm_eval_core(
 
 	const auto throughput = 2 * m * n * k / elapsed_time;
 
-	std::printf("%s,%lu,%lu,%lu,%e,%e,%e\n",
+	std::printf("%s,%s,%lu,%lu,%lu,%e,%e,%e\n",
+			input_mode.c_str(),
 			mtk::oztcecgemm::get_compute_mode_name_str(mode).c_str(),
 			m, n, k,
 			error.at(mtk::mateval::relative_residual),
@@ -210,7 +212,8 @@ void gemm_eval(
 								);
 					}
 				},
-				mode
+				mode,
+				input_mode
 				);
 	}
 
@@ -409,7 +412,8 @@ void gemm_eval_matfile(
 								);
 					}
 				},
-				mode
+				mode,
+				"matfile"
 				);
 	}
 
@@ -579,7 +583,7 @@ int main(int argc, char** argv) {
 			}
 		}
 
-		std::printf("mode,m,n,k,residual,max_relative,throughput_in_tflops\n");
+		std::printf("rand,mode,m,n,k,residual,max_relative,throughput_in_tflops\n");
 		std::fflush(stdout);
 		if (fp32in_gemm_list.size() != 0) {
 			gemm_eval<float>(fp32in_gemm_list, input_mode);
