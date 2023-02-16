@@ -209,8 +209,8 @@ void accumulate_in_fp64(
 			);
 }
 
-__global__ void accumulate_in_i64_kernel(
-		std::int64_t* const i64_ptr,
+__global__ void accumulate_in_f64_kernel(
+		double* const f64_ptr,
 		const std::int32_t* i32_ptr,
 		const std::size_t length,
 		const unsigned mantissa_rshift
@@ -220,20 +220,20 @@ __global__ void accumulate_in_i64_kernel(
 		return;
 	}
 
-	i64_ptr[tid] += ((static_cast<std::int64_t>(i32_ptr[tid]) << 32) / (1l << mantissa_rshift));
+	f64_ptr[tid] += ((static_cast<std::int64_t>(i32_ptr[tid]) << 32) / (1l << mantissa_rshift));
 }
 
-void accumulate_in_i64(
-		std::int64_t* const i64_ptr,
+void accumulate_in_f64(
+		double* const f64_ptr,
 		const std::int32_t* i32_ptr,
 		const std::size_t length,
 		const unsigned mantissa_rshift,
 		cudaStream_t cuda_stream
 		) {
 	constexpr std::size_t block_size = 256;
-	accumulate_in_i64_kernel
+	accumulate_in_f64_kernel
 		<<<(length + block_size - 1) / block_size, block_size, 0, cuda_stream>>>(
-				i64_ptr,
+				f64_ptr,
 				i32_ptr,
 				length,
 				mantissa_rshift
@@ -319,7 +319,7 @@ __global__ void axby_kernel(
 		const std::size_t m,
 		const std::size_t n,
 		const double a,
-		const std::int64_t* const x_ptr,
+		const double* const x_ptr,
 		const double b,
 		double* const y_ptr,
 		const std::size_t ldy,
@@ -336,7 +336,7 @@ __global__ void axby_kernel(
 
 	const auto memory_index = ni * ldy + mi;
 
-	const auto x = static_cast<double>(x_ptr[tid]) / (1l << 44) * a_max_exp_ptr[mi] * b_max_exp_ptr[ni];
+	const auto x = x_ptr[tid] / (1l << 44) * a_max_exp_ptr[mi] * b_max_exp_ptr[ni];
 
 	if (b != 0) {
 		y_ptr[memory_index] = a * x + b * y_ptr[memory_index];
@@ -349,7 +349,7 @@ void axby(
 		const std::size_t m,
 		const std::size_t n,
 		const double a,
-		const std::int64_t* const x_ptr,
+		const double* const x_ptr,
 		const double b,
 		double* const y_ptr,
 		const std::size_t ldy,
@@ -663,13 +663,13 @@ int mtk::oztcecgemm::gemm(
 			const auto bits_per_int8 = std::min<unsigned>(7u, std::ceil((31 - std::log2(k) / 2.)));
 
 			std::int32_t* const c_i32_ptr = reinterpret_cast<std::int32_t*>(handle->working_memory_ptr);
-			std::int64_t* const c_i64_ptr = reinterpret_cast<std::int64_t*>(c_i32_ptr + m * n);
-			double* const a_max_exp_ptr = reinterpret_cast<double*>(c_i64_ptr + m * n);
+			double* const c_f64_ptr = reinterpret_cast<double*>(c_i32_ptr + m * n);
+			double* const a_max_exp_ptr = reinterpret_cast<double*>(c_f64_ptr + m * n);
 			double* const b_max_exp_ptr = a_max_exp_ptr + m;
 			void* const working_memory_ptr = b_max_exp_ptr + n;
 
-			init_accumulator_buffer<std::int64_t>(
-					c_i64_ptr,
+			init_accumulator_buffer(
+					c_f64_ptr,
 					m * n,
 					handle->cuda_stream
 					);
@@ -701,22 +701,22 @@ int mtk::oztcecgemm::gemm(
 						compute_mode,
 						working_memory_ptr
 						);
-				handle->profiler.start_timer_sync("accumulate_in_i64");
-				accumulate_in_i64(
-						c_i64_ptr,
+				handle->profiler.start_timer_sync("accumulate_in_f64");
+				accumulate_in_f64(
+						c_f64_ptr,
 						c_i32_ptr,
 						m * n,
 						bits_per_int8 * (gemm_pair_config.A_id + gemm_pair_config.B_id - 2),
 						handle->cuda_stream
 						);
-				handle->profiler.stop_timer_sync("accumulate_in_i64");
+				handle->profiler.stop_timer_sync("accumulate_in_f64");
 			}
 			using C_T = double;
 			handle->profiler.start_timer_sync("copy_result");
 			axby(
 					m, n,
 					*reinterpret_cast<const C_T*>(alpha),
-					c_i64_ptr,
+					c_f64_ptr,
 					*reinterpret_cast<const C_T*>(beta),
 					reinterpret_cast<C_T*>(c_ptr), ldc,
 					a_max_exp_ptr,
