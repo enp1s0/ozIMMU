@@ -491,7 +491,7 @@ int main(int argc, char** argv) {
 
 		const auto matfile_A_path = std::string(argv[2]);
 		const auto matfile_B_path = std::string(argv[3]);
-		const auto compute_mode_list = get_compute_mode_list_from_argv(argc - 5, argv + 5);
+		const auto compute_mode_list = get_compute_mode_list_from_argv(argc - 4, argv + 4);
 
 		std::size_t am, an, bm, bn;
 		mtk::matfile::load_size(am, an, matfile_A_path);
@@ -541,7 +541,6 @@ int main(int argc, char** argv) {
 		if (fp64in_gemm_list.size() != 0) {
 			gemm_eval_matfile<double>(fp64in_gemm_list, matfile_A_path, matfile_B_path);
 		}
-
 	} else if (input_mode == "urand01" || input_mode == "normal01") {
 		if (argc <= 6) {
 			print_usage(argv[0]);
