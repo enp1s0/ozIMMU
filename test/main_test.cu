@@ -3,6 +3,8 @@
 #include <oztcecgemm/oztcecgemm.hpp>
 #include <cutf/memory.hpp>
 #include <cutf/curand.hpp>
+#include <cutf/curand_kernel.hpp>
+#include <cutf/math.hpp>
 #include <mateval/comparison_cuda.hpp>
 #include <matfile/matfile.hpp>
 
@@ -47,6 +49,45 @@ void adjust_urand(
 			ptr,
 			min_urand, max_urand,
 			n
+			);
+}
+
+// See "5.1 Experimental Settings" of https://link.springer.com/chapter/10.1007/978-3-030-50743-5_12
+template <class T>
+__global__ void gen_exp_rand_kernel(
+		T* const ptr,
+		const std::size_t N,
+		const T phi,
+		const std::uint64_t seed
+		) {
+	const auto tid = threadIdx.x + blockIdx.x * blockDim.x;
+	curandStateXORWOW_t curand_state;
+	curand_init(seed, tid, 0, &curand_state);
+
+	for (std::size_t i = tid; i < N; i += blockDim.x * gridDim.x){
+		const auto rand  = cutf::curand_kernel::uniform<T>(&curand_state);
+		const auto randn = cutf::curand_kernel::normal<T>(&curand_state);
+		const auto v = (rand - static_cast<T>(0.5)) * exp(phi * randn);
+
+		ptr[i] = v;
+	}
+}
+
+template <class T>
+void gen_exp_rand(
+		T* const ptr,
+		const std::size_t N,
+		const T phi,
+		const std::uint64_t seed
+		) {
+	const std::size_t block_size = 256;
+	const std::size_t grid_size = std::min((N + block_size - 1) / block_size, 1024lu);
+
+	gen_exp_rand_kernel<<<grid_size, block_size>>>(
+			ptr,
+			N,
+			phi,
+			seed
 			);
 }
 
@@ -156,8 +197,17 @@ void gemm_eval(
 	CUTF_CHECK_ERROR(curandSetPseudoRandomGeneratorSeed(*cugen.get(), seed));
 	if (input_mode == "normal01") {
 		CUTF_CHECK_ERROR(cutf::curand::generate_normal(*cugen.get(), mat_AB_uptr.get(), max_AB_count, 0, 1));
-	} else {
+	} else if (input_mode == "urand01") {
 		CUTF_CHECK_ERROR(cutf::curand::generate_uniform(*cugen.get(), mat_AB_uptr.get(), max_AB_count));
+	} else {
+		double phi = 0;
+		try {
+			phi = std::stod(input_mode.substr(9));
+		} catch (const std::exception& e) {
+			std::fprintf(stderr, "Error: %s [%s (line:%d)]\n", e.what(), __FILE__, __LINE__);
+			return;
+		}
+		gen_exp_rand<T>(mat_AB_uptr.get(), max_AB_count, phi, 0);
 	}
 
 	for (const auto gemm : gemm_list) {
@@ -466,7 +516,7 @@ void print_usage(
 	std::printf(
 			"Usage:\n"
 			"%s matfile [/path/to/A.matrix] [/path/to/B.matrix] [Computing mode list]\n"
-			"%s [urand01|normal01] [seq|exp2] [start_N] [end_N] [interval_N] [Computing mode list]\n"
+			"%s [urand01 | normal01 | exp_rand-X] [seq|exp2] [start_N] [end_N] [interval_N] [Computing mode list]\n"
 			"Compute modes:\n"
 			" %s\n",
 			program_name,
@@ -533,7 +583,7 @@ int main(int argc, char** argv) {
 				matfile_A_path.c_str(),
 				matfile_B_path.c_str()
 				);
-		std::printf("mode,m,n,k,residual,max_relative\n");
+		std::printf("input,mode,m,n,k,residual,max_relative\n");
 		std::fflush(stdout);
 		if (fp32in_gemm_list.size() != 0) {
 			gemm_eval_matfile<float>(fp32in_gemm_list, matfile_A_path, matfile_B_path);
@@ -541,7 +591,7 @@ int main(int argc, char** argv) {
 		if (fp64in_gemm_list.size() != 0) {
 			gemm_eval_matfile<double>(fp64in_gemm_list, matfile_A_path, matfile_B_path);
 		}
-	} else if (input_mode == "urand01" || input_mode == "normal01") {
+	} else if (input_mode == "urand01" || input_mode == "normal01" || input_mode.find_first_of("exp_rand-") != std::string::npos) {
 		if (argc <= 6) {
 			print_usage(argv[0]);
 			return 1;
@@ -582,7 +632,7 @@ int main(int argc, char** argv) {
 			}
 		}
 
-		std::printf("rand,mode,m,n,k,residual,max_relative,throughput_in_tflops\n");
+		std::printf("input,mode,m,n,k,residual,max_relative,throughput_in_tflops\n");
 		std::fflush(stdout);
 		if (fp32in_gemm_list.size() != 0) {
 			gemm_eval<float>(fp32in_gemm_list, input_mode);
