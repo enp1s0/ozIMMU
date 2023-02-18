@@ -14,7 +14,7 @@ foreach(lang CXX CUDA)
 endforeach()
 
 # CUDA (1/2)
-SET(CMAKE_CUDA_ARCHITECTURES 80 86)
+SET(CMAKE_CUDA_ARCHITECTURES 80 86 75)
 
 # Directories
 set(INCDIR include)
