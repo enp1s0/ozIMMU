@@ -64,10 +64,10 @@ __global__ void gen_exp_rand_kernel(
 	curandStateXORWOW_t curand_state;
 	curand_init(seed, tid, 0, &curand_state);
 
-	for (std::size_t i = tid; i < N; i++) {
+	for (std::size_t i = tid; i < N; i += blockDim.x * gridDim.x){
 		const auto rand  = cutf::curand_kernel::uniform<T>(&curand_state);
 		const auto randn = cutf::curand_kernel::normal<T>(&curand_state);
-		const auto v = (rand - static_cast<T>(0.5)) * cutf::math::exp(phi * randn);
+		const auto v = (rand - static_cast<T>(0.5)) * exp(phi * randn);
 
 		ptr[i] = v;
 	}
