@@ -220,7 +220,7 @@ __global__ void accumulate_in_f64_kernel(
 		return;
 	}
 
-	f64_ptr[tid] += ((static_cast<std::int64_t>(i32_ptr[tid]) << 32) / (1l << mantissa_rshift));
+	f64_ptr[tid] += static_cast<double>(static_cast<std::int64_t>(i32_ptr[tid]) << 32) * (1. / (1l << mantissa_rshift));
 }
 
 void accumulate_in_f64(
