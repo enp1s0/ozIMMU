@@ -213,14 +213,14 @@ __global__ void accumulate_in_f64_kernel(
 		double* const f64_ptr,
 		const std::int32_t* i32_ptr,
 		const std::size_t length,
-		const unsigned mantissa_rshift
+		const double scale
 		) {
 	const auto tid = blockIdx.x * blockDim.x + threadIdx.x;
 	if (tid >= length) {
 		return;
 	}
 
-	f64_ptr[tid] += static_cast<double>(static_cast<std::int64_t>(i32_ptr[tid]) << 32) * (1. / (1l << mantissa_rshift));
+	f64_ptr[tid] += static_cast<double>(static_cast<std::int64_t>(i32_ptr[tid]) << 32) * scale;
 }
 
 void accumulate_in_f64(
@@ -236,7 +236,7 @@ void accumulate_in_f64(
 				f64_ptr,
 				i32_ptr,
 				length,
-				mantissa_rshift
+				1. / std::pow(2., mantissa_rshift)
 			);
 }
 
