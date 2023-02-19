@@ -231,12 +231,13 @@ void accumulate_in_f64(
 		cudaStream_t cuda_stream
 		) {
 	constexpr std::size_t block_size = 256;
+	const auto scale = cutf::experimental::fp::reinterpret_as_fp(static_cast<std::uint64_t>((cutf::experimental::fp::get_bias<double>() - mantissa_rshift)) << cutf::experimental::fp::get_mantissa_size<double>());
 	accumulate_in_f64_kernel
 		<<<(length + block_size - 1) / block_size, block_size, 0, cuda_stream>>>(
 				f64_ptr,
 				i32_ptr,
 				length,
-				1. / std::pow(2., mantissa_rshift)
+				scale
 			);
 }
 
