@@ -590,6 +590,10 @@ int mtk::oztcecgemm::gemm(
 	case mtk::oztcecgemm::fp64_int8_7:
 	case mtk::oztcecgemm::fp64_int8_8:
 	case mtk::oztcecgemm::fp64_int8_9:
+	case mtk::oztcecgemm::fp64_int8_10:
+	case mtk::oztcecgemm::fp64_int8_11:
+	case mtk::oztcecgemm::fp64_int8_12:
+	case mtk::oztcecgemm::fp64_int8_13:
 		input_type = mtk::oztcecgemm::fp64;
 		break;
 	default:
@@ -655,10 +659,15 @@ int mtk::oztcecgemm::gemm(
 		handle->profiler.stop_timer_sync("copy_result");
 	} else if (input_type == mtk::oztcecgemm::fp64) {
 		if (
-				compute_mode == mtk::oztcecgemm::fp64_int8_6 ||
-				compute_mode == mtk::oztcecgemm::fp64_int8_7 ||
-				compute_mode == mtk::oztcecgemm::fp64_int8_8 ||
-				compute_mode == mtk::oztcecgemm::fp64_int8_9) {
+				compute_mode == mtk::oztcecgemm::fp64_int8_6  ||
+				compute_mode == mtk::oztcecgemm::fp64_int8_7  ||
+				compute_mode == mtk::oztcecgemm::fp64_int8_8  ||
+				compute_mode == mtk::oztcecgemm::fp64_int8_9  ||
+				compute_mode == mtk::oztcecgemm::fp64_int8_10 ||
+				compute_mode == mtk::oztcecgemm::fp64_int8_11 ||
+				compute_mode == mtk::oztcecgemm::fp64_int8_12 ||
+				compute_mode == mtk::oztcecgemm::fp64_int8_13
+				) {
 			const unsigned num_split = mtk::oztcecgemm::detail::get_split_config(compute_mode).matrix_A_split_types.size() - 1;
 			const auto bits_per_int8 = std::min<unsigned>(7u, std::ceil((31 - std::log2(k) / 2.)));
 
