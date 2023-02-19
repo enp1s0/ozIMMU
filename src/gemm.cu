@@ -181,7 +181,7 @@ mtk::shgemm::operation_t to_shgemm_operation_t(
 	return mtk::shgemm::op_n;
 }
 
-__global__ void accumulate_in_fp64_kernel(
+__global__ void accumulate_in_f64_kernel(
 		double* const dp_ptr,
 		const float* sp_ptr,
 		const std::size_t length
@@ -194,14 +194,14 @@ __global__ void accumulate_in_fp64_kernel(
 	dp_ptr[tid] += sp_ptr[tid];
 }
 
-void accumulate_in_fp64(
+void accumulate_in_f64(
 		double* const dp_ptr,
 		const float* sp_ptr,
 		const std::size_t length,
 		cudaStream_t cuda_stream
 		) {
 	constexpr std::size_t block_size = 256;
-	accumulate_in_fp64_kernel
+	accumulate_in_f64_kernel
 		<<<(length + block_size - 1) / block_size, block_size, 0, cuda_stream>>>(
 				dp_ptr,
 				sp_ptr,
@@ -629,9 +629,9 @@ int mtk::oztcecgemm::gemm(
 					compute_mode,
 					working_memory_ptr
 					);
-			handle->profiler.start_timer_sync("accumulate_in_fp64");
-			accumulate_in_fp64(c_fp64_ptr, c_fp32_ptr, m * n, handle->cuda_stream);
-			handle->profiler.stop_timer_sync("accumulate_in_fp64");
+			handle->profiler.start_timer_sync("accumulate_in_f64");
+			accumulate_in_f64(c_fp64_ptr, c_fp32_ptr, m * n, handle->cuda_stream);
+			handle->profiler.stop_timer_sync("accumulate_in_f64");
 		}
 
 		handle->profiler.start_timer_sync("copy_result");
