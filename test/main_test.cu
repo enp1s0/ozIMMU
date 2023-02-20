@@ -7,6 +7,7 @@
 #include <cutf/math.hpp>
 #include <mateval/comparison_cuda.hpp>
 #include <matfile/matfile.hpp>
+#include <gpu_monitor/gpu_monitor.hpp>
 
 constexpr unsigned test_count = 100;
 
@@ -470,6 +471,127 @@ void gemm_eval_matfile(
 	mtk::oztcecgemm::destroy(oztcecgemm_handle);
 }
 
+template <class T>
+void gemm_eval_power(
+		const mtk::oztcecgemm::gemm_list_t& gemm_list
+		) {
+	mtk::oztcecgemm::handle_t oztcecgemm_handle;
+	mtk::oztcecgemm::create(&oztcecgemm_handle);
+	mtk::oztcecgemm::reallocate_working_memory(oztcecgemm_handle, gemm_list);
+
+	std::size_t max_AB_count = 0;
+	std::size_t max_C_size = 0;
+	for (const auto gemm : gemm_list) {
+		const auto m = std::get<0>(gemm);
+		const auto n = std::get<1>(gemm);
+		const auto k = std::get<2>(gemm);
+		max_AB_count = std::max(max_AB_count, m * k + k * n);
+		max_C_size  = std::max(max_C_size , m * n *
+				mtk::oztcecgemm::get_data_size_in_byte(
+				mtk::oztcecgemm::get_output_type(std::get<3>(gemm))));
+	}
+
+	auto mat_AB_uptr = cutf::memory::get_device_unique_ptr<T>(max_AB_count);
+	auto mat_C_uptr  = cutf::memory::get_device_unique_ptr<std::uint8_t>(max_C_size);
+
+	auto cugen = cutf::curand::get_curand_unique_ptr(CURAND_RNG_PSEUDO_MT19937);
+	CUTF_CHECK_ERROR(curandSetPseudoRandomGeneratorSeed(*cugen.get(), seed));
+
+	CUTF_CHECK_ERROR(cutf::curand::generate_normal(*cugen.get(), mat_AB_uptr.get(), max_AB_count, 0, 1));
+
+	for (const auto gemm : gemm_list) {
+		const auto m = std::get<0>(gemm);
+		const auto n = std::get<1>(gemm);
+		const auto k = std::get<2>(gemm);
+		const auto mode = std::get<3>(gemm);
+
+		const auto gemm_func = [&](
+				const mtk::oztcecgemm::operation_t op_a,
+				const mtk::oztcecgemm::operation_t op_b,
+				const std::size_t m,
+				const std::size_t n,
+				const std::size_t k,
+				const T* const a_ptr, const std::size_t lda,
+				const T* const b_ptr, const std::size_t ldb,
+				void* const c_ptr, const std::size_t ldc
+				) {
+			if (mtk::oztcecgemm::get_output_type(mode) == mtk::oztcecgemm::fp32) {
+				using C_T = float;
+				const C_T alpha = 1, beta = 0;
+				mtk::oztcecgemm::gemm(
+						oztcecgemm_handle,
+						op_a, op_b,
+						m, n, k,
+						&alpha,
+						a_ptr, lda,
+						b_ptr, ldb,
+						&beta,
+						c_ptr, ldc,
+						mode
+						);
+			} else {
+				using C_T = double;
+				const C_T alpha = 1, beta = 0;
+				mtk::oztcecgemm::gemm(
+						oztcecgemm_handle,
+						op_a, op_b,
+						m, n, k,
+						&alpha,
+						a_ptr, lda,
+						b_ptr, ldb,
+						&beta,
+						c_ptr, ldc,
+						mode
+						);
+			}
+		};
+
+		constexpr std::size_t duration_time = 10;
+		std::size_t c = 0;
+		const auto result = mtk::gpu_monitor::measure_power_consumption(
+				[&]() {
+					CUTF_CHECK_ERROR(cudaDeviceSynchronize());
+					const auto start_clock = std::chrono::system_clock::now();
+					while (true) {
+						gemm_func(
+								mtk::oztcecgemm::op_n,
+								mtk::oztcecgemm::op_n,
+								m, n, k,
+								mat_AB_uptr.get(), m,
+								mat_AB_uptr.get() + m * k, k,
+								mat_C_uptr.get(), m
+								);
+						if (((++c) % 10) == 0) {
+							CUTF_CHECK_ERROR(cudaDeviceSynchronize());
+							const auto current_clock = std::chrono::system_clock::now();
+							const auto elapsed_time = std::chrono::duration_cast<std::chrono::microseconds>(current_clock - start_clock).count() * 1e-6;
+							if (elapsed_time > duration_time) {
+								break;
+							}
+						}
+					}
+				},
+				100
+				);
+		const auto power = mtk::gpu_monitor::get_integrated_power_consumption(result);
+		const auto elapsed_time = mtk::gpu_monitor::get_elapsed_time(result);
+		const auto average_power = power / elapsed_time;
+		const auto flops_per_watt = 2lu * m * n * k * c / power;
+
+		std::printf("%s,%lu,%lu,%lu,%e,%e,%e,%lu\n",
+				mtk::oztcecgemm::get_compute_mode_name_str(mode).c_str(),
+				m, n, k,
+				average_power,
+				flops_per_watt * 1e-9,
+				elapsed_time,
+				c
+				);
+		std::fflush(stdout);
+	}
+
+	mtk::oztcecgemm::destroy(oztcecgemm_handle);
+}
+
 std::vector<mtk::oztcecgemm::compute_mode_t> get_supported_compute_mode() {
 	return std::vector<mtk::oztcecgemm::compute_mode_t>{
 		mtk::oztcecgemm::sgemm,
@@ -479,6 +601,10 @@ std::vector<mtk::oztcecgemm::compute_mode_t> get_supported_compute_mode() {
 		mtk::oztcecgemm::fp64_int8_7,
 		mtk::oztcecgemm::fp64_int8_8,
 		mtk::oztcecgemm::fp64_int8_9,
+		mtk::oztcecgemm::fp64_int8_10,
+		mtk::oztcecgemm::fp64_int8_11,
+		mtk::oztcecgemm::fp64_int8_12,
+		mtk::oztcecgemm::fp64_int8_13,
 	};
 }
 
@@ -517,8 +643,10 @@ void print_usage(
 			"Usage:\n"
 			"%s matfile [/path/to/A.matrix] [/path/to/B.matrix] [Computing mode list]\n"
 			"%s [urand01 | normal01 | exp_rand-X] [seq|exp2] [start_N] [end_N] [interval_N] [Computing mode list]\n"
+			"%s power [seq|exp2] [start_N] [end_N] [interval_N] [Computing mode list]\n"
 			"Compute modes:\n"
 			" %s\n",
+			program_name,
 			program_name,
 			program_name,
 			compute_mode_list_str.c_str()
@@ -591,7 +719,7 @@ int main(int argc, char** argv) {
 		if (fp64in_gemm_list.size() != 0) {
 			gemm_eval_matfile<double>(fp64in_gemm_list, matfile_A_path, matfile_B_path);
 		}
-	} else if (input_mode == "urand01" || input_mode == "normal01" || input_mode.find_first_of("exp_rand-") != std::string::npos) {
+	} else if (input_mode == "urand01" || input_mode == "normal01" || (input_mode.length() >= 9 && input_mode.substr(0, 9) == "exp_rand-")) {
 		if (argc <= 6) {
 			print_usage(argv[0]);
 			return 1;
@@ -639,6 +767,55 @@ int main(int argc, char** argv) {
 		}
 		if (fp64in_gemm_list.size() != 0) {
 			gemm_eval<double>(fp64in_gemm_list, input_mode);
+		}
+	} else if (input_mode == "power") {
+		if (argc <= 6) {
+			print_usage(argv[0]);
+			return 1;
+		}
+		const auto N_mode = std::string(argv[2]);
+		if (N_mode != "seq" && N_mode != "exp2") {
+			std::fprintf(stderr, "Error: unknown N mode \"%s\"\n", N_mode.c_str());
+			return 1;
+		}
+		const auto min_N = std::stoul(argv[3]);
+		const auto max_N = std::stoul(argv[4]);
+		const auto interval_N = std::stoul(argv[5]);
+		const auto compute_mode_list = get_compute_mode_list_from_argv(argc - 6, argv + 6);
+
+		mtk::oztcecgemm::gemm_list_t fp32in_gemm_list;
+		mtk::oztcecgemm::gemm_list_t fp64in_gemm_list;
+
+		for (std::size_t N = min_N; N <= max_N; N += interval_N) {
+			auto real_N = N;
+			if (N_mode == "exp2") {real_N = 1lu << N;}
+
+			for (auto compute_mode : compute_mode_list) {
+				if (mtk::oztcecgemm::get_output_type(compute_mode) == mtk::oztcecgemm::fp32) {
+					fp32in_gemm_list.push_back(std::tuple<std::size_t, std::size_t, std::size_t, mtk::oztcecgemm::compute_mode_t>(
+								real_N,
+								real_N,
+								real_N,
+								compute_mode
+								));
+				} else {
+					fp64in_gemm_list.push_back(std::tuple<std::size_t, std::size_t, std::size_t, mtk::oztcecgemm::compute_mode_t>(
+								real_N,
+								real_N,
+								real_N,
+								compute_mode
+								));
+				}
+			}
+		}
+
+		std::printf("mode,m,n,k,avg_watt,gflops_per_watt,time,count\n");
+		std::fflush(stdout);
+		if (fp32in_gemm_list.size() != 0) {
+			gemm_eval_power<float>(fp32in_gemm_list);
+		}
+		if (fp64in_gemm_list.size() != 0) {
+			gemm_eval_power<double>(fp64in_gemm_list);
 		}
 	} else {
 		std::fprintf(stderr, "Error: Unknown input mode \"%s\"\n", input_mode.c_str());

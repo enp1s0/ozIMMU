@@ -66,6 +66,7 @@ if (${BUILD_TEST})
 	set(TESTSRCDIR test)
 
 	add_subdirectory(test/mateval)
+	add_subdirectory(test/gpu_monitor)
 
 	foreach(test main)
 		set(test_out ${test}.test)
@@ -78,6 +79,7 @@ if (${BUILD_TEST})
 			CUDA::cublas
 			CUDA::curand
 			mateval_cuda
+			gpu_monitor
 			)
 	endforeach()
 endif()
