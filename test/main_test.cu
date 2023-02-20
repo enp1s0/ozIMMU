@@ -587,11 +587,13 @@ void gemm_eval_power(
 		const auto elapsed_time = mtk::gpu_monitor::get_elapsed_time(result);
 		const auto average_power = power / elapsed_time;
 		const auto flops_per_watt = 2lu * m * n * k * c / power;
+		const auto throughput_in_tflops = 2lu * m * n * k / elapsed_time * 1e-12;
 
-		std::printf("%s,%s,%lu,%lu,%lu,%e,%e,%e,%lu\n",
-			get_gpu_name_str().c_str(),
+		std::printf("%s,%s,%lu,%lu,%lu,%e,%e,%e,%e,%lu\n",
+				get_gpu_name_str().c_str(),
 				mtk::oztcecgemm::get_compute_mode_name_str(mode).c_str(),
 				m, n, k,
+				throughput_in_tflops,
 				average_power,
 				flops_per_watt * 1e-9,
 				elapsed_time,
@@ -820,7 +822,7 @@ int main(int argc, char** argv) {
 			}
 		}
 
-		std::printf("gpu,mode,m,n,k,avg_watt,gflops_per_watt,time,count\n");
+		std::printf("gpu,mode,m,n,k,throughput_in_tflops,avg_watt,gflops_per_watt,time,count\n");
 		std::fflush(stdout);
 		if (fp32in_gemm_list.size() != 0) {
 			gemm_eval_power<float>(fp32in_gemm_list);
