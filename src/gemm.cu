@@ -181,7 +181,7 @@ mtk::shgemm::operation_t to_shgemm_operation_t(
 	return mtk::shgemm::op_n;
 }
 
-__global__ void accumulate_in_fp64_kernel(
+__global__ void accumulate_in_f64_kernel(
 		double* const dp_ptr,
 		const float* sp_ptr,
 		const std::size_t length
@@ -194,14 +194,14 @@ __global__ void accumulate_in_fp64_kernel(
 	dp_ptr[tid] += sp_ptr[tid];
 }
 
-void accumulate_in_fp64(
+void accumulate_in_f64(
 		double* const dp_ptr,
 		const float* sp_ptr,
 		const std::size_t length,
 		cudaStream_t cuda_stream
 		) {
 	constexpr std::size_t block_size = 256;
-	accumulate_in_fp64_kernel
+	accumulate_in_f64_kernel
 		<<<(length + block_size - 1) / block_size, block_size, 0, cuda_stream>>>(
 				dp_ptr,
 				sp_ptr,
@@ -213,14 +213,14 @@ __global__ void accumulate_in_f64_kernel(
 		double* const f64_ptr,
 		const std::int32_t* i32_ptr,
 		const std::size_t length,
-		const unsigned mantissa_rshift
+		const double scale
 		) {
 	const auto tid = blockIdx.x * blockDim.x + threadIdx.x;
 	if (tid >= length) {
 		return;
 	}
 
-	f64_ptr[tid] += static_cast<double>(static_cast<std::int64_t>(i32_ptr[tid]) << 32) * (1. / (1l << mantissa_rshift));
+	f64_ptr[tid] += static_cast<double>(static_cast<std::int64_t>(i32_ptr[tid]) << 32) * scale;
 }
 
 void accumulate_in_f64(
@@ -231,12 +231,13 @@ void accumulate_in_f64(
 		cudaStream_t cuda_stream
 		) {
 	constexpr std::size_t block_size = 256;
+	const auto scale = cutf::experimental::fp::reinterpret_as_fp(static_cast<std::uint64_t>((cutf::experimental::fp::get_bias<double>() - mantissa_rshift)) << cutf::experimental::fp::get_mantissa_size<double>());
 	accumulate_in_f64_kernel
 		<<<(length + block_size - 1) / block_size, block_size, 0, cuda_stream>>>(
 				f64_ptr,
 				i32_ptr,
 				length,
-				mantissa_rshift
+				scale
 			);
 }
 
@@ -590,6 +591,10 @@ int mtk::oztcecgemm::gemm(
 	case mtk::oztcecgemm::fp64_int8_7:
 	case mtk::oztcecgemm::fp64_int8_8:
 	case mtk::oztcecgemm::fp64_int8_9:
+	case mtk::oztcecgemm::fp64_int8_10:
+	case mtk::oztcecgemm::fp64_int8_11:
+	case mtk::oztcecgemm::fp64_int8_12:
+	case mtk::oztcecgemm::fp64_int8_13:
 		input_type = mtk::oztcecgemm::fp64;
 		break;
 	default:
@@ -625,9 +630,9 @@ int mtk::oztcecgemm::gemm(
 					compute_mode,
 					working_memory_ptr
 					);
-			handle->profiler.start_timer_sync("accumulate_in_fp64");
-			accumulate_in_fp64(c_fp64_ptr, c_fp32_ptr, m * n, handle->cuda_stream);
-			handle->profiler.stop_timer_sync("accumulate_in_fp64");
+			handle->profiler.start_timer_sync("accumulate_in_f64");
+			accumulate_in_f64(c_fp64_ptr, c_fp32_ptr, m * n, handle->cuda_stream);
+			handle->profiler.stop_timer_sync("accumulate_in_f64");
 		}
 
 		handle->profiler.start_timer_sync("copy_result");
@@ -655,10 +660,15 @@ int mtk::oztcecgemm::gemm(
 		handle->profiler.stop_timer_sync("copy_result");
 	} else if (input_type == mtk::oztcecgemm::fp64) {
 		if (
-				compute_mode == mtk::oztcecgemm::fp64_int8_6 ||
-				compute_mode == mtk::oztcecgemm::fp64_int8_7 ||
-				compute_mode == mtk::oztcecgemm::fp64_int8_8 ||
-				compute_mode == mtk::oztcecgemm::fp64_int8_9) {
+				compute_mode == mtk::oztcecgemm::fp64_int8_6  ||
+				compute_mode == mtk::oztcecgemm::fp64_int8_7  ||
+				compute_mode == mtk::oztcecgemm::fp64_int8_8  ||
+				compute_mode == mtk::oztcecgemm::fp64_int8_9  ||
+				compute_mode == mtk::oztcecgemm::fp64_int8_10 ||
+				compute_mode == mtk::oztcecgemm::fp64_int8_11 ||
+				compute_mode == mtk::oztcecgemm::fp64_int8_12 ||
+				compute_mode == mtk::oztcecgemm::fp64_int8_13
+				) {
 			const unsigned num_split = mtk::oztcecgemm::detail::get_split_config(compute_mode).matrix_A_split_types.size() - 1;
 			const auto bits_per_int8 = std::min<unsigned>(7u, std::ceil((31 - std::log2(k) / 2.)));
 

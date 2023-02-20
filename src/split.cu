@@ -28,7 +28,7 @@ __device__ T get_exp_max_element(
 
 		local_abs_max = cutf::math::max(local_abs_max, v);
 
-		local_ptr += inc;
+		local_ptr += inc * blockDim.x;
 	}
 
 	// Inner-warp reduction

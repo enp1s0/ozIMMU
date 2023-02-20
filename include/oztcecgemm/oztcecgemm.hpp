@@ -23,6 +23,10 @@ enum compute_mode_t {
 	fp64_int8_7,
 	fp64_int8_8,
 	fp64_int8_9,
+	fp64_int8_10,
+	fp64_int8_11,
+	fp64_int8_12,
+	fp64_int8_13,
 };
 
 enum data_t {

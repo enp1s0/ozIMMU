@@ -27,12 +27,20 @@ mtk::oztcecgemm::detail::split_config_t mtk::oztcecgemm::detail::get_split_confi
 	case mtk::oztcecgemm::fp64_int8_7:
 	case mtk::oztcecgemm::fp64_int8_8:
 	case mtk::oztcecgemm::fp64_int8_9:
+	case mtk::oztcecgemm::fp64_int8_10:
+	case mtk::oztcecgemm::fp64_int8_11:
+	case mtk::oztcecgemm::fp64_int8_12:
+	case mtk::oztcecgemm::fp64_int8_13:
 		{
 			unsigned num_split = 0;
-			if (compute_mode == mtk::oztcecgemm::fp64_int8_6) {num_split = 6;}
-			if (compute_mode == mtk::oztcecgemm::fp64_int8_7) {num_split = 7;}
-			if (compute_mode == mtk::oztcecgemm::fp64_int8_8) {num_split = 8;}
-			if (compute_mode == mtk::oztcecgemm::fp64_int8_9) {num_split = 9;}
+			if (compute_mode == mtk::oztcecgemm::fp64_int8_6 ) {num_split = 6;}
+			if (compute_mode == mtk::oztcecgemm::fp64_int8_7 ) {num_split = 7;}
+			if (compute_mode == mtk::oztcecgemm::fp64_int8_8 ) {num_split = 8;}
+			if (compute_mode == mtk::oztcecgemm::fp64_int8_9 ) {num_split = 9;}
+			if (compute_mode == mtk::oztcecgemm::fp64_int8_10) {num_split = 10;}
+			if (compute_mode == mtk::oztcecgemm::fp64_int8_11) {num_split = 11;}
+			if (compute_mode == mtk::oztcecgemm::fp64_int8_12) {num_split = 12;}
+			if (compute_mode == mtk::oztcecgemm::fp64_int8_13) {num_split = 13;}
 
 			// Data
 			std::vector<mtk::oztcecgemm::data_t> split_types(num_split + 1);
