@@ -578,18 +578,19 @@ void gemm_eval_power(
 								);
 					}
 				},
-				50
+				25
 				);
 		const auto power = mtk::gpu_monitor::get_integrated_power_consumption(result);
 		const auto elapsed_time = mtk::gpu_monitor::get_elapsed_time(result);
 		const auto average_power = power / elapsed_time;
 		const auto flops_per_watt = 2lu * m * n * k * loop / power;
 
-		std::printf("%s,%lu,%lu,%lu,%e,%e\n",
+		std::printf("%s,%lu,%lu,%lu,%e,%e,%lu\n",
 				mtk::oztcecgemm::get_compute_mode_name_str(mode).c_str(),
 				m, n, k,
 				average_power,
-				flops_per_watt * 1e-9
+				flops_per_watt * 1e-9,
+				loop
 				);
 		std::fflush(stdout);
 	}
