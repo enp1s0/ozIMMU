@@ -16,3 +16,6 @@
 [submodule "test/matfile"]
 	path = test/matfile
 	url = https://github.com/enp1s0/matfile
+[submodule "test/gpu_monitor"]
+	path = test/gpu_monitor
+	url = https://github.com/enp1s0/gpu_monitor
