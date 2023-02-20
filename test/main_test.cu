@@ -1,9 +1,11 @@
+#include <algorithm>
 #include <iostream>
 #include <chrono>
 #include <oztcecgemm/oztcecgemm.hpp>
 #include <cutf/memory.hpp>
 #include <cutf/curand.hpp>
 #include <cutf/curand_kernel.hpp>
+#include <cutf/device.hpp>
 #include <cutf/math.hpp>
 #include <mateval/comparison_cuda.hpp>
 #include <matfile/matfile.hpp>
@@ -12,6 +14,13 @@
 constexpr unsigned test_count = 100;
 
 constexpr unsigned long long seed = 0;
+
+std::string get_gpu_name_str() {
+	const auto device_prop = cutf::device::get_properties_vector()[0];
+	std::string gpu_name = device_prop.name;
+	std::replace(gpu_name.begin(), gpu_name.end(), ' ', '_');
+	return gpu_name;
+}
 
 inline mtk::mateval::layout_t conv_layout_oz2mateval(const mtk::oztcecgemm::operation_t op) {
 	if (op == mtk::oztcecgemm::op_n) {
@@ -159,7 +168,8 @@ void gemm_eval_core(
 
 	const auto throughput = 2 * m * n * k / elapsed_time;
 
-	std::printf("%s,%s,%lu,%lu,%lu,%e,%e,%e\n",
+	std::printf("%s,%s,%s,%lu,%lu,%lu,%e,%e,%e\n",
+			get_gpu_name_str().c_str(),
 			input_mode.c_str(),
 			mtk::oztcecgemm::get_compute_mode_name_str(mode).c_str(),
 			m, n, k,
@@ -578,7 +588,8 @@ void gemm_eval_power(
 		const auto average_power = power / elapsed_time;
 		const auto flops_per_watt = 2lu * m * n * k * c / power;
 
-		std::printf("%s,%lu,%lu,%lu,%e,%e,%e,%lu\n",
+		std::printf("%s,%s,%lu,%lu,%lu,%e,%e,%e,%lu\n",
+			get_gpu_name_str().c_str(),
 				mtk::oztcecgemm::get_compute_mode_name_str(mode).c_str(),
 				m, n, k,
 				average_power,
@@ -711,7 +722,7 @@ int main(int argc, char** argv) {
 				matfile_A_path.c_str(),
 				matfile_B_path.c_str()
 				);
-		std::printf("input,mode,m,n,k,residual,max_relative\n");
+		std::printf("gpu,input,mode,m,n,k,residual,max_relative\n");
 		std::fflush(stdout);
 		if (fp32in_gemm_list.size() != 0) {
 			gemm_eval_matfile<float>(fp32in_gemm_list, matfile_A_path, matfile_B_path);
@@ -760,7 +771,7 @@ int main(int argc, char** argv) {
 			}
 		}
 
-		std::printf("input,mode,m,n,k,residual,max_relative,throughput_in_tflops\n");
+		std::printf("gpu,input,mode,m,n,k,residual,max_relative,throughput_in_tflops\n");
 		std::fflush(stdout);
 		if (fp32in_gemm_list.size() != 0) {
 			gemm_eval<float>(fp32in_gemm_list, input_mode);
@@ -809,7 +820,7 @@ int main(int argc, char** argv) {
 			}
 		}
 
-		std::printf("mode,m,n,k,avg_watt,gflops_per_watt,time,count\n");
+		std::printf("gpu,mode,m,n,k,avg_watt,gflops_per_watt,time,count\n");
 		std::fflush(stdout);
 		if (fp32in_gemm_list.size() != 0) {
 			gemm_eval_power<float>(fp32in_gemm_list);
