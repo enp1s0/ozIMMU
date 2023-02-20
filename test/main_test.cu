@@ -561,7 +561,7 @@ void gemm_eval_power(
 								mat_AB_uptr.get() + m * k, k,
 								mat_C_uptr.get(), m
 								);
-						if (((++c) % 100) == 0) {
+						if (((++c) % 10) == 0) {
 							CUTF_CHECK_ERROR(cudaDeviceSynchronize());
 							const auto current_clock = std::chrono::system_clock::now();
 							const auto elapsed_time = std::chrono::duration_cast<std::chrono::microseconds>(current_clock - start_clock).count() * 1e-6;
