@@ -543,7 +543,6 @@ void gemm_eval_power(
 						c_ptr, ldc,
 						mode
 						);
-				cutf::debug::print::print_matrix_hex_from_host(reinterpret_cast<double*>(c_ptr), 1, 20, ldc, "C");
 			}
 		};
 
