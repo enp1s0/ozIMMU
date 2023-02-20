@@ -546,28 +546,13 @@ void gemm_eval_power(
 			}
 		};
 
-		CUTF_CHECK_ERROR(cudaDeviceSynchronize());
-		const auto start_clock = std::chrono::system_clock::now();
-		for (unsigned i = 0; i < test_count; i++) {
-			gemm_func(
-					mtk::oztcecgemm::op_n,
-					mtk::oztcecgemm::op_n,
-					m, n, k,
-					mat_AB_uptr.get(), m,
-					mat_AB_uptr.get() + m * k, k,
-					mat_C_uptr.get(), m
-					);
-		}
-		CUTF_CHECK_ERROR(cudaDeviceSynchronize());
-		const auto end_clock = std::chrono::system_clock::now();
-
-		const auto time_per_gemm = (std::chrono::duration_cast<std::chrono::nanoseconds>(end_clock - start_clock).count() * 1e-9 / test_count);
-		const auto measurement_time = 10;
-		const std::size_t loop = std::max<std::size_t>(1, measurement_time / time_per_gemm);
-
+		constexpr std::size_t duration_time = 10;
+		std::size_t c = 0;
 		const auto result = mtk::gpu_monitor::measure_power_consumption(
 				[&]() {
-					for (std::size_t l = 0; l < loop; l++) {
+					CUTF_CHECK_ERROR(cudaDeviceSynchronize());
+					const auto start_clock = std::chrono::system_clock::now();
+					while (true) {
 						gemm_func(
 								mtk::oztcecgemm::op_n,
 								mtk::oztcecgemm::op_n,
@@ -576,21 +561,30 @@ void gemm_eval_power(
 								mat_AB_uptr.get() + m * k, k,
 								mat_C_uptr.get(), m
 								);
+						if (((++c) % 100) == 0) {
+							CUTF_CHECK_ERROR(cudaDeviceSynchronize());
+							const auto current_clock = std::chrono::system_clock::now();
+							const auto elapsed_time = std::chrono::duration_cast<std::chrono::microseconds>(current_clock - start_clock).count() * 1e-6;
+							if (elapsed_time > duration_time) {
+								break;
+							}
+						}
 					}
 				},
-				25
+				100
 				);
 		const auto power = mtk::gpu_monitor::get_integrated_power_consumption(result);
 		const auto elapsed_time = mtk::gpu_monitor::get_elapsed_time(result);
 		const auto average_power = power / elapsed_time;
-		const auto flops_per_watt = 2lu * m * n * k * loop / power;
+		const auto flops_per_watt = 2lu * m * n * k * c / power;
 
-		std::printf("%s,%lu,%lu,%lu,%e,%e,%lu\n",
+		std::printf("%s,%lu,%lu,%lu,%e,%e,%e,%lu\n",
 				mtk::oztcecgemm::get_compute_mode_name_str(mode).c_str(),
 				m, n, k,
 				average_power,
 				flops_per_watt * 1e-9,
-				loop
+				elapsed_time,
+				c
 				);
 		std::fflush(stdout);
 	}
@@ -815,7 +809,7 @@ int main(int argc, char** argv) {
 			}
 		}
 
-		std::printf("mode,m,n,k,avg_watt,gflops_per_watt\n");
+		std::printf("mode,m,n,k,avg_watt,gflops_per_watt,time,count\n");
 		std::fflush(stdout);
 		if (fp32in_gemm_list.size() != 0) {
 			gemm_eval_power<float>(fp32in_gemm_list);
