@@ -36,7 +36,7 @@ export OZIMMA_INFO=[1 or 0]
 export OZIMMA_ERROR_LOG=[1 or 0]
 
 # Enable / disable CULiP log output
-export OZIMMA_ENABLE_CULIP_PROFILING=[1 or 1]
+export OZIMMA_ENABLE_CULIP_PROFILING=[0 or 1]
 ```
 
 ## License
