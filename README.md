@@ -22,7 +22,10 @@ export LD_PRELOAD=/path/to/build/libozimma.so:$LD_PRELOAD
 ```bash
 export OZIMMA_COMPUTE_MODE=fp64_int8_9
 ```
-Compute modes: fp64_int8_6 fp64_int8_7 fp64_int8_8 fp64_int8_9 fp64_int8_10 fp64_int8_11 fp64_int8_12 fp64_int8_13 dgemm
+Compute modes:
+```
+fp64_int8_6 fp64_int8_7 fp64_int8_8 fp64_int8_9 fp64_int8_10 fp64_int8_11 fp64_int8_12 fp64_int8_13 dgemm
+```
 
 ### Environmental variable
 ```bash
