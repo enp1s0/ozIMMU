@@ -8,7 +8,7 @@ int mtk::ozimma::create(
 		) {
 	auto handle = (*h = new mtk::ozimma::handle);
 	// Initialize cuBLAS handler
-	CUTF_CHECK_ERROR(cublasCreate(&(handle->cublas_handle)));
+	CUTF_CHECK_ERROR(cublasCreate_org(&(handle->cublas_handle)));
 
 	// Disable profiling by default
 	mtk::ozimma::disable_profiling(*h);
@@ -20,7 +20,7 @@ int mtk::ozimma::destroy(
 		mtk::ozimma::handle_t handle
 		) {
 	// Destroy cuBLAS handler
-	CUTF_CHECK_ERROR(cublasDestroy(handle->cublas_handle));
+	CUTF_CHECK_ERROR(cublasDestroy_org(handle->cublas_handle));
 
 	delete handle;
 

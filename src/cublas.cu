@@ -3,6 +3,7 @@
 #include <cutf/cublas.hpp>
 #include <ozimma/ozimma.hpp>
 #include "culip.hpp"
+#include "handle.hpp"
 
 #ifndef CUBLASAPI
 #define CUBLASAPI
@@ -129,6 +130,22 @@ mtk::ozimma::handle_t& get_global_ozimma_handle() {
 
 std::string cublas_library_name = "libcublas.so";
 
+cublasStatus_t mtk::ozimma::cublasCreate_org(
+		cublasHandle_t* handle_ptr
+		) {
+	cublasStatus_t (*func_ptr)(cublasHandle_t*);
+	*(void**)(&func_ptr)	= ozIMMA_get_function_pointer(cublas_library_name, "cublasCreate_v2");
+	return (*func_ptr)(handle_ptr);
+}
+
+cublasStatus_t mtk::ozimma::cublasDestroy_org(
+		cublasHandle_t cublas_handle
+		) {
+	cublasStatus_t (*func_ptr)(cublasHandle_t);
+	*(void**)(&func_ptr)	= ozIMMA_get_function_pointer(cublas_library_name, "cublasDestroy_v2");
+	return (*func_ptr)(cublas_handle);
+}
+
 // Hijacking functions
 extern "C" {
 CUBLASAPI cublasStatus_t CUBLASWINAPI cublasCreate_v2 (cublasHandle_t *handle) {
@@ -142,9 +159,7 @@ CUBLASAPI cublasStatus_t CUBLASWINAPI cublasCreate_v2 (cublasHandle_t *handle) {
 			);
 
 	// Run the original function
-	cublasStatus_t (*func_ptr)(cublasHandle_t*);
-	*(void**)(&func_ptr)	= ozIMMA_get_function_pointer(cublas_library_name, __func__);
-	return (*func_ptr)(handle);
+	return mtk::ozimma::cublasCreate_org(handle);
 #endif
 }
 
@@ -152,17 +167,17 @@ CUBLASAPI cublasStatus_t CUBLASWINAPI cublasDestroy_v2 (cublasHandle_t handle) {
 #ifdef __CUDA_ARCH__
 	return CUBLAS_STATUS_NOT_SUPPORTED;
 #else
-	ozIMMA_log("Destroying ozIMMA handle...");
-	mtk::ozimma::destroy(
-			get_global_ozimma_handle()
-			);
-	delete global_ozimma_handle;
-	global_ozimma_handle = nullptr;
+	if (global_ozimma_handle != nullptr) {
+		ozIMMA_log("Destroying ozIMMA handle...");
+		mtk::ozimma::destroy(
+				get_global_ozimma_handle()
+				);
+		delete global_ozimma_handle;
+		global_ozimma_handle = nullptr;
+	}
 
 	// Run the original function
-	cublasStatus_t (*func_ptr)(cublasHandle_t);
-	*(void**)(&func_ptr)	= ozIMMA_get_function_pointer(cublas_library_name, __func__);
-	return (*func_ptr)(handle);
+	return mtk::ozimma::cublasDestroy_org(handle);
 #endif
 }
 

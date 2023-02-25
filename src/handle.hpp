@@ -15,3 +15,15 @@ struct mtk::ozimma::handle {
 	// profiling
 	cutf::debug::time_breakdown::profiler profiler;
 };
+
+namespace mtk {
+namespace ozimma {
+cublasStatus_t cublasCreate_org(
+		cublasHandle_t* handle_ptr
+		);
+
+cublasStatus_t cublasDestroy_org(
+		cublasHandle_t handle_ptr
+		);
+} // namespace ozimma
+} // namespace mtk
