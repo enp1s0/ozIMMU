@@ -10,11 +10,6 @@ int mtk::oztcecgemm::create(
 	// Initialize cuBLAS handler
 	CUTF_CHECK_ERROR(cublasCreate(&(handle->cublas_handle)));
 
-	int cc_major, cc_minor;
-	CUTF_CHECK_ERROR(cudaDeviceGetAttribute(&cc_major, cudaDevAttrComputeCapabilityMajor, 0));
-	CUTF_CHECK_ERROR(cudaDeviceGetAttribute(&cc_minor, cudaDevAttrComputeCapabilityMinor, 0));
-	const auto cc = cc_major * 10 + cc_minor;
-
 	// Disable profiling by default
 	mtk::oztcecgemm::disable_profiling(*h);
 
