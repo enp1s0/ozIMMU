@@ -609,7 +609,6 @@ std::vector<mtk::oztcecgemm::compute_mode_t> get_supported_compute_mode() {
 	return std::vector<mtk::oztcecgemm::compute_mode_t>{
 		mtk::oztcecgemm::sgemm,
 		mtk::oztcecgemm::dgemm,
-		mtk::oztcecgemm::fp32_split_3,
 		mtk::oztcecgemm::fp64_int8_6,
 		mtk::oztcecgemm::fp64_int8_7,
 		mtk::oztcecgemm::fp64_int8_8,

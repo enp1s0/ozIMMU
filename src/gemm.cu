@@ -1,5 +1,4 @@
 #include <cutf/cublas.hpp>
-#include <shgemm/shgemm.hpp>
 #include "config.hpp"
 #include "split.hpp"
 #include "utils.hpp"
@@ -23,19 +22,6 @@ std::size_t split_core(
 
 	if (num_split <= 1) {
 		// Do nothing
-	} else if (num_split == 2) {
-		mtk::oztcecgemm::split_2(
-				reinterpret_cast<std::uint8_t*>(split_ptr), data_type_list[1],
-				reinterpret_cast<std::uint8_t*>(split_ptr) + mtk::oztcecgemm::get_data_size_in_byte(data_type_list[1]) * m * n, data_type_list[2],
-				m, n,
-				src_ptr, mtk::oztcecgemm::detail::get_data_t<T>(), ld,
-				op,
-				matrix,
-				two_to_alpha_ptr,
-				cuda_stream
-				);
-		offset += mtk::oztcecgemm::get_data_size_in_byte(data_type_list[1]) * m * n;
-		offset += mtk::oztcecgemm::get_data_size_in_byte(data_type_list[2]) * m * n;
 	} else {
 		OZTCECGEM_NOT_IMPLEMENTED;
 	}
@@ -164,21 +150,6 @@ cublasOperation_t to_cublasOperation_t(
 	}
 	OZTCECGEM_NOT_IMPLEMENTED;
 	return CUBLAS_OP_N;
-}
-
-mtk::shgemm::operation_t to_shgemm_operation_t(
-		const mtk::oztcecgemm::operation_t op
-		) {
-	switch (op) {
-	case mtk::oztcecgemm::op_n:
-		return mtk::shgemm::op_n;
-	case mtk::oztcecgemm::op_t:
-		return mtk::shgemm::op_t;
-	default:
-		break;
-	}
-	OZTCECGEM_NOT_IMPLEMENTED;
-	return mtk::shgemm::op_n;
 }
 
 __global__ void accumulate_in_f64_kernel(
@@ -474,70 +445,6 @@ void gemm_core(
 						));
 		}
 		break;
-	case mtk::oztcecgemm::detail::shgemm_tf32:
-	case mtk::oztcecgemm::detail::shgemm_fp16:
-		{
-			const auto op_A_r = gemm_pair_config.A_id == 0 ? to_shgemm_operation_t(op_A) : mtk::shgemm::op_t;
-			const auto op_B_r = gemm_pair_config.B_id == 0 ? to_shgemm_operation_t(op_B) : mtk::shgemm::op_n;
-			const auto shgemm_mode = gemm_mode == mtk::oztcecgemm::detail::shgemm_fp16 ? mtk::shgemm::fp16 : mtk::shgemm::tf32;
-			mtk::shgemm::shgemm(
-					handle->shgemm_handle,
-					op_A_r,
-					op_B_r,
-					m, n, k,
-					&alpha_r,
-					reinterpret_cast<const float*>(a_ptr_r), lda_r,
-					reinterpret_cast<const half*>(b_ptr_r), ldb_r,
-					&beta_r,
-					reinterpret_cast<float*>(c_ptr_r), m,
-					shgemm_mode
-					);
-		}
-		break;
-	case mtk::oztcecgemm::detail::hsgemm_tf32:
-	case mtk::oztcecgemm::detail::hsgemm_fp16:
-		{
-			const auto op_A_r = gemm_pair_config.A_id == 0 ? to_shgemm_operation_t(op_A) : mtk::shgemm::op_t;
-			const auto op_B_r = gemm_pair_config.B_id == 0 ? to_shgemm_operation_t(op_B) : mtk::shgemm::op_n;
-			const auto shgemm_mode = gemm_mode == mtk::oztcecgemm::detail::hsgemm_fp16 ? mtk::shgemm::fp16 : mtk::shgemm::tf32;
-			mtk::shgemm::hsgemm(
-					handle->shgemm_handle,
-					op_A_r,
-					op_B_r,
-					m, n, k,
-					&alpha_r,
-					reinterpret_cast<const half*>(a_ptr_r), lda_r,
-					reinterpret_cast<const float*>(b_ptr_r), ldb_r,
-					&beta_r,
-					reinterpret_cast<float*>(c_ptr_r), m,
-					shgemm_mode
-					);
-		}
-		break;
-	case mtk::oztcecgemm::detail::fp16tcec:
-	case mtk::oztcecgemm::detail::tf32tcec:
-		{
-			const auto op_A_r = gemm_pair_config.A_id == 0 ? to_cublasOperation_t(op_A) : CUBLAS_OP_T;
-			const auto op_B_r = gemm_pair_config.B_id == 0 ? to_cublasOperation_t(op_B) : CUBLAS_OP_N;
-			const auto type_A_r = gemm_pair_config.A_id == 0 ? type_a : split_config.matrix_A_split_types[gemm_pair_config.A_id];
-			const auto type_B_r = gemm_pair_config.B_id == 0 ? type_b : split_config.matrix_B_split_types[gemm_pair_config.B_id];
-
-			const auto cumpsgemm_compute_mode = gemm_mode == mtk::oztcecgemm::detail::fp16tcec ? CUMPSGEMM_FP16TCEC : CUMPSGEMM_TF32TCEC;
-
-			cumpsgemm::gemm(
-						handle->cumpsgemm_handle,
-						op_A_r,
-						op_B_r,
-						m, n, k,
-						&alpha_r,
-						reinterpret_cast<const float*>(a_ptr_r), lda_r,
-						reinterpret_cast<const float*>(b_ptr_r), ldb_r,
-						&beta_r,
-						reinterpret_cast<float*>(c_ptr_r), m,
-						cumpsgemm_compute_mode
-						);
-		}
-		break;
 	case mtk::oztcecgemm::detail::int8tc:
 		{
 			const int alpha_i = 1, beta_i = 0;
@@ -582,7 +489,6 @@ int mtk::oztcecgemm::gemm(
 		) {
 	mtk::oztcecgemm::data_t input_type;
 	switch (compute_mode) {
-	case mtk::oztcecgemm::fp32_split_3:
 	case mtk::oztcecgemm::sgemm:
 		input_type = mtk::oztcecgemm::fp32;
 		break;

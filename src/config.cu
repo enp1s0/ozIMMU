@@ -17,12 +17,6 @@ mtk::oztcecgemm::detail::split_config_t mtk::oztcecgemm::detail::get_split_confi
 			{original},
 			{{0, 0, detail::cublas_dgemm}}
 		};
-	case mtk::oztcecgemm::fp32_split_3:
-		return split_config_t {
-			{original, fp16, fp32},
-			{original, fp16, fp32},
-			{{1, 1, detail::cublas_fp16}, {1, 2, detail::hsgemm_fp16}, {2, 0, detail::fp16tcec}}
-		};
 	case mtk::oztcecgemm::fp64_int8_6:
 	case mtk::oztcecgemm::fp64_int8_7:
 	case mtk::oztcecgemm::fp64_int8_8:
@@ -79,12 +73,6 @@ std::string mtk::oztcecgemm::detail::gemm_mode_str(
 	GEMM_MODE_STR_CASE(cublas_tf32 );
 	GEMM_MODE_STR_CASE(cublas_fp16 );
 	GEMM_MODE_STR_CASE(cublas_bf16 );
-	GEMM_MODE_STR_CASE(tf32tcec    );
-	GEMM_MODE_STR_CASE(fp16tcec    );
-	GEMM_MODE_STR_CASE(shgemm_fp16 );
-	GEMM_MODE_STR_CASE(shgemm_tf32 );
-	GEMM_MODE_STR_CASE(hsgemm_fp16 );
-	GEMM_MODE_STR_CASE(hsgemm_tf32 );
 	GEMM_MODE_STR_CASE(int8tc      );
 	default:
 		break;
