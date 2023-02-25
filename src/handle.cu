@@ -15,16 +15,6 @@ int mtk::oztcecgemm::create(
 	CUTF_CHECK_ERROR(cudaDeviceGetAttribute(&cc_minor, cudaDevAttrComputeCapabilityMinor, 0));
 	const auto cc = cc_major * 10 + cc_minor;
 
-	if (cc >= 80) {
-		// Initialize SHGEMM handler
-		mtk::shgemm::create(handle->shgemm_handle);
-
-		// Initialize cuMpSGEMM handler
-		cumpsgemm::create(handle->cumpsgemm_handle);
-	} else {
-		std::fprintf(stderr, "[OZTCECGEMM warning] CC is lower than 80. SHGEMM and cuMpSGEMM are not available.\n");
-	}
-
 	// Disable profiling by default
 	mtk::oztcecgemm::disable_profiling(*h);
 
@@ -37,12 +27,6 @@ int mtk::oztcecgemm::destroy(
 	// Destroy cuBLAS handler
 	CUTF_CHECK_ERROR(cublasDestroy(handle->cublas_handle));
 
-	// Destroy SHGEMM handler
-	mtk::shgemm::destroy(handle->shgemm_handle);
-
-	// Destroy cuMpSGEMM handler
-	cumpsgemm::destroy(handle->cumpsgemm_handle);
-
 	delete handle;
 
 	return 0;
@@ -54,12 +38,6 @@ void mtk::oztcecgemm::set_cuda_stream(
 		) {
 	// Set cuda stream to cuBLAS handler
 	CUTF_CHECK_ERROR(cublasSetStream(handle->cublas_handle, cuda_stream));
-
-	// Set cuda stream to SHGEMM handler
-	mtk::shgemm::set_cuda_stream(handle->shgemm_handle, cuda_stream);
-
-	// Set cuda stream to cuMpSGEMM handler
-	cumpsgemm::set_stream(handle->cumpsgemm_handle, cuda_stream);
 
 	// Set oztcecgemm handler
 	handle->cuda_stream = cuda_stream;
@@ -140,8 +118,6 @@ std::string mtk::oztcecgemm::get_compute_mode_name_str(
 		const mtk::oztcecgemm::compute_mode_t mode
 		) {
 	switch (mode) {
-	case mtk::oztcecgemm::fp32_split_3:
-		return "fp32_split_3";
 	case mtk::oztcecgemm::sgemm:
 		return "sgemm";
 	case mtk::oztcecgemm::dgemm:
@@ -175,7 +151,6 @@ mtk::oztcecgemm::data_t mtk::oztcecgemm::get_output_type(
 	case mtk::oztcecgemm::sgemm:
 		return mtk::oztcecgemm::fp32;
 
-	case mtk::oztcecgemm::fp32_split_3:
 	case mtk::oztcecgemm::fp64_int8_6:
 	case mtk::oztcecgemm::fp64_int8_7:
 	case mtk::oztcecgemm::fp64_int8_8:

@@ -31,19 +31,12 @@ add_library(${lib_name} STATIC
 	${HEADERS}
 	)
 
-add_subdirectory(${SRCDIR}/shgemm)
-add_subdirectory(${SRCDIR}/cuMpSGEMM)
-
 target_include_directories(${lib_name} PUBLIC ${INCDIR})
 target_include_directories(${lib_name} PUBLIC ${SRCDIR}/cutf/include)
-target_include_directories(${lib_name} PUBLIC ${SRCDIR}/shgemm/include)
-target_include_directories(${lib_name} PUBLIC ${SRCDIR}/cuMpSGEMM/include)
 target_include_directories(${lib_name} PUBLIC ${SRCDIR}/matfile/include)
 
 target_link_libraries(${lib_name} PRIVATE
 	cuda
-	shgemm
-	cumpsgemm_static
 	)
 
 set_target_properties(${lib_name} PROPERTIES CUDA_SEPARABLE_COMPILATION ON)

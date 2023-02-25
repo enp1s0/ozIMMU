@@ -18,12 +18,6 @@ enum gemm_t {
 	cublas_tf32,
 	cublas_fp16,
 	cublas_bf16,
-	tf32tcec,
-	fp16tcec,
-	shgemm_fp16,
-	shgemm_tf32,
-	hsgemm_fp16,
-	hsgemm_tf32,
 	int8tc
 };
 
