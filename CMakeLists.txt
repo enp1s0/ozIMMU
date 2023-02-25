@@ -23,11 +23,13 @@ set(SRCDIR src)
 file(GLOB HEADERS "${INCDIR}/oztcecgemm/*.hpp")
 
 SET(lib_name oztcecgemm)
-add_library(${lib_name} STATIC
+add_library(${lib_name} SHARED
 	${SRCDIR}/handle.cu
 	${SRCDIR}/config.cu
 	${SRCDIR}/split.cu
 	${SRCDIR}/gemm.cu
+	${SRCDIR}/cublas.cu
+	${SRCDIR}/culip.cu
 	${HEADERS}
 	)
 
