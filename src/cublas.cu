@@ -296,7 +296,7 @@ CUBLASAPI cublasStatus_t cublasGemmEx(cublasHandle_t handle, cublasOperation_t t
 #ifdef __CUDA_ARCH__
 	return CUBLAS_STATUS_NOT_SUPPORTED;
 #else
-	if (Atype == CUDA_R_32F && Btype == CUDA_R_32F && Ctype == CUDA_R_32F) {
+	if (Atype == CUDA_R_64F && Btype == CUDA_R_64F && Ctype == CUDA_R_64F) {
 		return cublasDgemm_v2(
 				handle,
 				transa, transb,
