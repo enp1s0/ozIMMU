@@ -1,7 +1,7 @@
 #include <algorithm>
 #include <iostream>
 #include <chrono>
-#include <oztcecgemm/oztcecgemm.hpp>
+#include <ozimma/ozimma.hpp>
 #include <cutf/memory.hpp>
 #include <cutf/curand.hpp>
 #include <cutf/curand_kernel.hpp>
@@ -22,8 +22,8 @@ std::string get_gpu_name_str() {
 	return gpu_name;
 }
 
-inline mtk::mateval::layout_t conv_layout_oz2mateval(const mtk::oztcecgemm::operation_t op) {
-	if (op == mtk::oztcecgemm::op_n) {
+inline mtk::mateval::layout_t conv_layout_oz2mateval(const mtk::ozimma::operation_t op) {
+	if (op == mtk::ozimma::op_n) {
 		return mtk::mateval::col_major;
 	}
 	return mtk::mateval::row_major;
@@ -103,8 +103,8 @@ void gen_exp_rand(
 
 template <class C_T, class AB_T, class MATMUL_FUNC>
 void gemm_eval_core(
-		const mtk::oztcecgemm::operation_t op_a,
-		const mtk::oztcecgemm::operation_t op_b,
+		const mtk::ozimma::operation_t op_a,
+		const mtk::ozimma::operation_t op_b,
 		const std::size_t m,
 		const std::size_t n,
 		const std::size_t k,
@@ -112,7 +112,7 @@ void gemm_eval_core(
 		const AB_T* const b_ptr, const std::size_t ldb,
 		C_T* const c_ptr, const std::size_t ldc,
 		const MATMUL_FUNC matmul_func,
-		const mtk::oztcecgemm::compute_mode_t mode,
+		const mtk::ozimma::compute_mode_t mode,
 		const std::string input_mode
 		) {
 	matmul_func(
@@ -124,7 +124,7 @@ void gemm_eval_core(
 			);
 
 	mtk::mateval::error_map_t error;
-	if (mtk::oztcecgemm::get_output_type(mode) == mtk::oztcecgemm::fp32) {
+	if (mtk::ozimma::get_output_type(mode) == mtk::ozimma::fp32) {
 		error = mtk::mateval::cuda::get_error_AxB(
 				mtk::mateval::relative_residual | mtk::mateval::max_relative_error,
 				m, n, k,
@@ -171,7 +171,7 @@ void gemm_eval_core(
 	std::printf("%s,%s,%s,%lu,%lu,%lu,%e,%e,%e\n",
 			get_gpu_name_str().c_str(),
 			input_mode.c_str(),
-			mtk::oztcecgemm::get_compute_mode_name_str(mode).c_str(),
+			mtk::ozimma::get_compute_mode_name_str(mode).c_str(),
 			m, n, k,
 			error.at(mtk::mateval::relative_residual),
 			error.at(mtk::mateval::max_relative_error),
@@ -182,12 +182,12 @@ void gemm_eval_core(
 
 template <class T>
 void gemm_eval(
-		const mtk::oztcecgemm::gemm_list_t& gemm_list,
+		const mtk::ozimma::gemm_list_t& gemm_list,
 		const std::string input_mode
 		) {
-	mtk::oztcecgemm::handle_t oztcecgemm_handle;
-	mtk::oztcecgemm::create(&oztcecgemm_handle);
-	mtk::oztcecgemm::reallocate_working_memory(oztcecgemm_handle, gemm_list);
+	mtk::ozimma::handle_t ozimma_handle;
+	mtk::ozimma::create(&ozimma_handle);
+	mtk::ozimma::reallocate_working_memory(ozimma_handle, gemm_list);
 
 	std::size_t max_AB_count = 0;
 	std::size_t max_C_size = 0;
@@ -197,8 +197,8 @@ void gemm_eval(
 		const auto k = std::get<2>(gemm);
 		max_AB_count = std::max(max_AB_count, m * k + k * n);
 		max_C_size  = std::max(max_C_size , m * n *
-				mtk::oztcecgemm::get_data_size_in_byte(
-				mtk::oztcecgemm::get_output_type(std::get<3>(gemm))));
+				mtk::ozimma::get_data_size_in_byte(
+				mtk::ozimma::get_output_type(std::get<3>(gemm))));
 	}
 
 	auto mat_AB_uptr = cutf::memory::get_device_unique_ptr<T>(max_AB_count);
@@ -227,15 +227,15 @@ void gemm_eval(
 		const auto k = std::get<2>(gemm);
 		const auto mode = std::get<3>(gemm);
 		gemm_eval_core(
-				mtk::oztcecgemm::op_n,
-				mtk::oztcecgemm::op_n,
+				mtk::ozimma::op_n,
+				mtk::ozimma::op_n,
 				m, n, k,
 				mat_AB_uptr.get(), m,
 				mat_AB_uptr.get() + m * k, k,
 				mat_C_uptr.get(), m,
 				[&](
-						const mtk::oztcecgemm::operation_t op_a,
-						const mtk::oztcecgemm::operation_t op_b,
+						const mtk::ozimma::operation_t op_a,
+						const mtk::ozimma::operation_t op_b,
 						const std::size_t m,
 						const std::size_t n,
 						const std::size_t k,
@@ -243,11 +243,11 @@ void gemm_eval(
 						const T* const b_ptr, const std::size_t ldb,
 						void* const c_ptr, const std::size_t ldc
 									) {
-					if (mtk::oztcecgemm::get_output_type(mode) == mtk::oztcecgemm::fp32) {
+					if (mtk::ozimma::get_output_type(mode) == mtk::ozimma::fp32) {
 						using C_T = float;
 						const C_T alpha = 1, beta = 0;
-						mtk::oztcecgemm::gemm(
-								oztcecgemm_handle,
+						mtk::ozimma::gemm(
+								ozimma_handle,
 								op_a, op_b,
 								m, n, k,
 								&alpha,
@@ -260,8 +260,8 @@ void gemm_eval(
 					} else {
 						using C_T = double;
 						const C_T alpha = 1, beta = 0;
-						mtk::oztcecgemm::gemm(
-								oztcecgemm_handle,
+						mtk::ozimma::gemm(
+								ozimma_handle,
 								op_a, op_b,
 								m, n, k,
 								&alpha,
@@ -278,7 +278,7 @@ void gemm_eval(
 				);
 	}
 
-	mtk::oztcecgemm::destroy(oztcecgemm_handle);
+	mtk::ozimma::destroy(ozimma_handle);
 }
 
 template <class SRC_T, class DST_T>
@@ -389,13 +389,13 @@ mtk::mateval::error_map_t eval_matfile(
 
 template <class T>
 void gemm_eval_matfile(
-		const mtk::oztcecgemm::gemm_list_t& gemm_list,
+		const mtk::ozimma::gemm_list_t& gemm_list,
 		const std::string matfile_A_path,
 		const std::string matfile_B_path
 		) {
-	mtk::oztcecgemm::handle_t oztcecgemm_handle;
-	mtk::oztcecgemm::create(&oztcecgemm_handle);
-	mtk::oztcecgemm::reallocate_working_memory(oztcecgemm_handle, gemm_list);
+	mtk::ozimma::handle_t ozimma_handle;
+	mtk::ozimma::create(&ozimma_handle);
+	mtk::ozimma::reallocate_working_memory(ozimma_handle, gemm_list);
 
 	std::size_t max_AB_count = 0;
 	std::size_t max_C_size = 0;
@@ -405,8 +405,8 @@ void gemm_eval_matfile(
 		const auto k = std::get<2>(gemm);
 		max_AB_count = std::max(max_AB_count, m * k + k * n);
 		max_C_size  = std::max(max_C_size , m * n *
-				mtk::oztcecgemm::get_data_size_in_byte(
-				mtk::oztcecgemm::get_output_type(std::get<3>(gemm))));
+				mtk::ozimma::get_data_size_in_byte(
+				mtk::ozimma::get_output_type(std::get<3>(gemm))));
 	}
 
 	auto mat_AB_uptr = cutf::memory::get_device_unique_ptr<T>(max_AB_count);
@@ -427,15 +427,15 @@ void gemm_eval_matfile(
 		matfile_to_device_memory(b_ptr, matfile_B_path);
 
 		gemm_eval_core(
-				mtk::oztcecgemm::op_n,
-				mtk::oztcecgemm::op_n,
+				mtk::ozimma::op_n,
+				mtk::ozimma::op_n,
 				m, n, k,
 				mat_AB_uptr.get(), m,
 				mat_AB_uptr.get() + m * k, k,
 				mat_C_uptr.get(), m,
 				[&](
-						const mtk::oztcecgemm::operation_t op_a,
-						const mtk::oztcecgemm::operation_t op_b,
+						const mtk::ozimma::operation_t op_a,
+						const mtk::ozimma::operation_t op_b,
 						const std::size_t m,
 						const std::size_t n,
 						const std::size_t k,
@@ -443,11 +443,11 @@ void gemm_eval_matfile(
 						const T* const b_ptr, const std::size_t ldb,
 						void* const c_ptr, const std::size_t ldc
 									) {
-					if (mtk::oztcecgemm::get_output_type(mode) == mtk::oztcecgemm::fp32) {
+					if (mtk::ozimma::get_output_type(mode) == mtk::ozimma::fp32) {
 						using C_T = float;
 						const C_T alpha = 1, beta = 0;
-						mtk::oztcecgemm::gemm(
-								oztcecgemm_handle,
+						mtk::ozimma::gemm(
+								ozimma_handle,
 								op_a, op_b,
 								m, n, k,
 								&alpha,
@@ -460,8 +460,8 @@ void gemm_eval_matfile(
 					} else {
 						using C_T = double;
 						const C_T alpha = 1, beta = 0;
-						mtk::oztcecgemm::gemm(
-								oztcecgemm_handle,
+						mtk::ozimma::gemm(
+								ozimma_handle,
 								op_a, op_b,
 								m, n, k,
 								&alpha,
@@ -478,16 +478,16 @@ void gemm_eval_matfile(
 				);
 	}
 
-	mtk::oztcecgemm::destroy(oztcecgemm_handle);
+	mtk::ozimma::destroy(ozimma_handle);
 }
 
 template <class T>
 void gemm_eval_power(
-		const mtk::oztcecgemm::gemm_list_t& gemm_list
+		const mtk::ozimma::gemm_list_t& gemm_list
 		) {
-	mtk::oztcecgemm::handle_t oztcecgemm_handle;
-	mtk::oztcecgemm::create(&oztcecgemm_handle);
-	mtk::oztcecgemm::reallocate_working_memory(oztcecgemm_handle, gemm_list);
+	mtk::ozimma::handle_t ozimma_handle;
+	mtk::ozimma::create(&ozimma_handle);
+	mtk::ozimma::reallocate_working_memory(ozimma_handle, gemm_list);
 
 	std::size_t max_AB_count = 0;
 	std::size_t max_C_size = 0;
@@ -497,8 +497,8 @@ void gemm_eval_power(
 		const auto k = std::get<2>(gemm);
 		max_AB_count = std::max(max_AB_count, m * k + k * n);
 		max_C_size  = std::max(max_C_size , m * n *
-				mtk::oztcecgemm::get_data_size_in_byte(
-				mtk::oztcecgemm::get_output_type(std::get<3>(gemm))));
+				mtk::ozimma::get_data_size_in_byte(
+				mtk::ozimma::get_output_type(std::get<3>(gemm))));
 	}
 
 	auto mat_AB_uptr = cutf::memory::get_device_unique_ptr<T>(max_AB_count);
@@ -516,8 +516,8 @@ void gemm_eval_power(
 		const auto mode = std::get<3>(gemm);
 
 		const auto gemm_func = [&](
-				const mtk::oztcecgemm::operation_t op_a,
-				const mtk::oztcecgemm::operation_t op_b,
+				const mtk::ozimma::operation_t op_a,
+				const mtk::ozimma::operation_t op_b,
 				const std::size_t m,
 				const std::size_t n,
 				const std::size_t k,
@@ -525,11 +525,11 @@ void gemm_eval_power(
 				const T* const b_ptr, const std::size_t ldb,
 				void* const c_ptr, const std::size_t ldc
 				) {
-			if (mtk::oztcecgemm::get_output_type(mode) == mtk::oztcecgemm::fp32) {
+			if (mtk::ozimma::get_output_type(mode) == mtk::ozimma::fp32) {
 				using C_T = float;
 				const C_T alpha = 1, beta = 0;
-				mtk::oztcecgemm::gemm(
-						oztcecgemm_handle,
+				mtk::ozimma::gemm(
+						ozimma_handle,
 						op_a, op_b,
 						m, n, k,
 						&alpha,
@@ -542,8 +542,8 @@ void gemm_eval_power(
 			} else {
 				using C_T = double;
 				const C_T alpha = 1, beta = 0;
-				mtk::oztcecgemm::gemm(
-						oztcecgemm_handle,
+				mtk::ozimma::gemm(
+						ozimma_handle,
 						op_a, op_b,
 						m, n, k,
 						&alpha,
@@ -564,8 +564,8 @@ void gemm_eval_power(
 					const auto start_clock = std::chrono::system_clock::now();
 					while (true) {
 						gemm_func(
-								mtk::oztcecgemm::op_n,
-								mtk::oztcecgemm::op_n,
+								mtk::ozimma::op_n,
+								mtk::ozimma::op_n,
 								m, n, k,
 								mat_AB_uptr.get(), m,
 								mat_AB_uptr.get() + m * k, k,
@@ -591,7 +591,7 @@ void gemm_eval_power(
 
 		std::printf("%s,%s,%lu,%lu,%lu,%e,%e,%e,%e,%lu\n",
 				get_gpu_name_str().c_str(),
-				mtk::oztcecgemm::get_compute_mode_name_str(mode).c_str(),
+				mtk::ozimma::get_compute_mode_name_str(mode).c_str(),
 				m, n, k,
 				throughput_in_tflops,
 				average_power,
@@ -602,34 +602,34 @@ void gemm_eval_power(
 		std::fflush(stdout);
 	}
 
-	mtk::oztcecgemm::destroy(oztcecgemm_handle);
+	mtk::ozimma::destroy(ozimma_handle);
 }
 
-std::vector<mtk::oztcecgemm::compute_mode_t> get_supported_compute_mode() {
-	return std::vector<mtk::oztcecgemm::compute_mode_t>{
-		mtk::oztcecgemm::sgemm,
-		mtk::oztcecgemm::dgemm,
-		mtk::oztcecgemm::fp64_int8_6,
-		mtk::oztcecgemm::fp64_int8_7,
-		mtk::oztcecgemm::fp64_int8_8,
-		mtk::oztcecgemm::fp64_int8_9,
-		mtk::oztcecgemm::fp64_int8_10,
-		mtk::oztcecgemm::fp64_int8_11,
-		mtk::oztcecgemm::fp64_int8_12,
-		mtk::oztcecgemm::fp64_int8_13,
+std::vector<mtk::ozimma::compute_mode_t> get_supported_compute_mode() {
+	return std::vector<mtk::ozimma::compute_mode_t>{
+		mtk::ozimma::sgemm,
+		mtk::ozimma::dgemm,
+		mtk::ozimma::fp64_int8_6,
+		mtk::ozimma::fp64_int8_7,
+		mtk::ozimma::fp64_int8_8,
+		mtk::ozimma::fp64_int8_9,
+		mtk::ozimma::fp64_int8_10,
+		mtk::ozimma::fp64_int8_11,
+		mtk::ozimma::fp64_int8_12,
+		mtk::ozimma::fp64_int8_13,
 	};
 }
 
-std::vector<mtk::oztcecgemm::compute_mode_t> get_compute_mode_list_from_argv(
+std::vector<mtk::ozimma::compute_mode_t> get_compute_mode_list_from_argv(
 		const std::size_t count,
 		char** argv
 		) {
-	std::vector<mtk::oztcecgemm::compute_mode_t> mode_list;
+	std::vector<mtk::ozimma::compute_mode_t> mode_list;
 
 	for (std::size_t i = 0; i < count; i++) {
 		bool added = false;
 		for (const auto m : get_supported_compute_mode()) {
-			if (std::string(argv[i]) == mtk::oztcecgemm::get_compute_mode_name_str(m)) {
+			if (std::string(argv[i]) == mtk::ozimma::get_compute_mode_name_str(m)) {
 				mode_list.push_back(m);
 				added = true;
 				break;
@@ -648,7 +648,7 @@ void print_usage(
 		) {
 	std::string compute_mode_list_str = "";
 	for (const auto& name : get_supported_compute_mode()) {
-		compute_mode_list_str += mtk::oztcecgemm::get_compute_mode_name_str(name) + " ";
+		compute_mode_list_str += mtk::ozimma::get_compute_mode_name_str(name) + " ";
 	}
 
 	std::printf(
@@ -695,19 +695,19 @@ int main(int argc, char** argv) {
 			return 1;
 		}
 
-		mtk::oztcecgemm::gemm_list_t fp32in_gemm_list;
-		mtk::oztcecgemm::gemm_list_t fp64in_gemm_list;
+		mtk::ozimma::gemm_list_t fp32in_gemm_list;
+		mtk::ozimma::gemm_list_t fp64in_gemm_list;
 
 		for (auto compute_mode : compute_mode_list) {
-			if (mtk::oztcecgemm::get_output_type(compute_mode) == mtk::oztcecgemm::fp32) {
-				fp32in_gemm_list.push_back(std::tuple<std::size_t, std::size_t, std::size_t, mtk::oztcecgemm::compute_mode_t>(
+			if (mtk::ozimma::get_output_type(compute_mode) == mtk::ozimma::fp32) {
+				fp32in_gemm_list.push_back(std::tuple<std::size_t, std::size_t, std::size_t, mtk::ozimma::compute_mode_t>(
 							am,
 							bn,
 							an,
 							compute_mode
 							));
 			} else {
-				fp64in_gemm_list.push_back(std::tuple<std::size_t, std::size_t, std::size_t, mtk::oztcecgemm::compute_mode_t>(
+				fp64in_gemm_list.push_back(std::tuple<std::size_t, std::size_t, std::size_t, mtk::ozimma::compute_mode_t>(
 							am,
 							bn,
 							an,
@@ -746,23 +746,23 @@ int main(int argc, char** argv) {
 		const auto interval_N = std::stoul(argv[5]);
 		const auto compute_mode_list = get_compute_mode_list_from_argv(argc - 6, argv + 6);
 
-		mtk::oztcecgemm::gemm_list_t fp32in_gemm_list;
-		mtk::oztcecgemm::gemm_list_t fp64in_gemm_list;
+		mtk::ozimma::gemm_list_t fp32in_gemm_list;
+		mtk::ozimma::gemm_list_t fp64in_gemm_list;
 
 		for (std::size_t N = min_N; N <= max_N; N += interval_N) {
 			auto real_N = N;
 			if (N_mode == "exp2") {real_N = 1lu << N;}
 
 			for (auto compute_mode : compute_mode_list) {
-				if (mtk::oztcecgemm::get_output_type(compute_mode) == mtk::oztcecgemm::fp32) {
-					fp32in_gemm_list.push_back(std::tuple<std::size_t, std::size_t, std::size_t, mtk::oztcecgemm::compute_mode_t>(
+				if (mtk::ozimma::get_output_type(compute_mode) == mtk::ozimma::fp32) {
+					fp32in_gemm_list.push_back(std::tuple<std::size_t, std::size_t, std::size_t, mtk::ozimma::compute_mode_t>(
 								real_N,
 								real_N,
 								real_N,
 								compute_mode
 								));
 				} else {
-					fp64in_gemm_list.push_back(std::tuple<std::size_t, std::size_t, std::size_t, mtk::oztcecgemm::compute_mode_t>(
+					fp64in_gemm_list.push_back(std::tuple<std::size_t, std::size_t, std::size_t, mtk::ozimma::compute_mode_t>(
 								real_N,
 								real_N,
 								real_N,
@@ -795,23 +795,23 @@ int main(int argc, char** argv) {
 		const auto interval_N = std::stoul(argv[5]);
 		const auto compute_mode_list = get_compute_mode_list_from_argv(argc - 6, argv + 6);
 
-		mtk::oztcecgemm::gemm_list_t fp32in_gemm_list;
-		mtk::oztcecgemm::gemm_list_t fp64in_gemm_list;
+		mtk::ozimma::gemm_list_t fp32in_gemm_list;
+		mtk::ozimma::gemm_list_t fp64in_gemm_list;
 
 		for (std::size_t N = min_N; N <= max_N; N += interval_N) {
 			auto real_N = N;
 			if (N_mode == "exp2") {real_N = 1lu << N;}
 
 			for (auto compute_mode : compute_mode_list) {
-				if (mtk::oztcecgemm::get_output_type(compute_mode) == mtk::oztcecgemm::fp32) {
-					fp32in_gemm_list.push_back(std::tuple<std::size_t, std::size_t, std::size_t, mtk::oztcecgemm::compute_mode_t>(
+				if (mtk::ozimma::get_output_type(compute_mode) == mtk::ozimma::fp32) {
+					fp32in_gemm_list.push_back(std::tuple<std::size_t, std::size_t, std::size_t, mtk::ozimma::compute_mode_t>(
 								real_N,
 								real_N,
 								real_N,
 								compute_mode
 								));
 				} else {
-					fp64in_gemm_list.push_back(std::tuple<std::size_t, std::size_t, std::size_t, mtk::oztcecgemm::compute_mode_t>(
+					fp64in_gemm_list.push_back(std::tuple<std::size_t, std::size_t, std::size_t, mtk::ozimma::compute_mode_t>(
 								real_N,
 								real_N,
 								real_N,

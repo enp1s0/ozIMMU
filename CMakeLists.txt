@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.18)
-project(oztcecgemm LANGUAGES CXX CUDA)
+project(ozimma LANGUAGES CXX CUDA)
 
 set(BUILD_TEST OFF)
 
@@ -20,9 +20,9 @@ SET(CMAKE_CUDA_ARCHITECTURES 80 86 75)
 set(INCDIR include)
 set(SRCDIR src)
 
-file(GLOB HEADERS "${INCDIR}/oztcecgemm/*.hpp")
+file(GLOB HEADERS "${INCDIR}/ozimma/*.hpp")
 
-SET(lib_name oztcecgemm)
+SET(lib_name ozimma)
 add_library(${lib_name} SHARED
 	${SRCDIR}/handle.cu
 	${SRCDIR}/config.cu
@@ -41,15 +41,15 @@ target_link_libraries(${lib_name} PRIVATE
 	)
 
 set_target_properties(${lib_name} PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
-set_target_properties(${lib_name} PROPERTIES PUBLIC_HEADER ${INCDIR}/oztcecgemm/${library}.hpp)
+set_target_properties(${lib_name} PROPERTIES PUBLIC_HEADER ${INCDIR}/ozimma/${library}.hpp)
 target_compile_options(${lib_name} PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:--ptxas-options=-v>)
 
 ##########################################################################
 # Installing
 ##########################################################################
-install(TARGETS oztcecgemm
+install(TARGETS ozimma
 	LIBRARY DESTINATION lib
-	PUBLIC_HEADER DESTINATION include/oztcecgemm
+	PUBLIC_HEADER DESTINATION include/ozimma
 	)
 
 ##########################################################################
@@ -68,7 +68,7 @@ if (${BUILD_TEST})
 		target_include_directories(${test_out} PRIVATE ${INCDIR})
 		target_include_directories(${test_out} PRIVATE ${TESTSRCDIR}/mateval/include)
 		target_include_directories(${test_out} PRIVATE ${TESTSRCDIR}/matfile/include)
-		target_link_libraries(${test_out} PRIVATE oztcecgemm)
+		target_link_libraries(${test_out} PRIVATE ozimma)
 		target_link_libraries(${test_out} PRIVATE
 			CUDA::cublas
 			CUDA::curand
