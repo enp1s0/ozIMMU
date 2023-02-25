@@ -23,7 +23,7 @@ std::size_t split_core(
 	if (num_split <= 1) {
 		// Do nothing
 	} else {
-		OZTCECGEM_NOT_IMPLEMENTED;
+		OZIMMA_NOT_IMPLEMENTED;
 	}
 
 	return offset;
@@ -133,7 +133,7 @@ cudaDataType_t to_cudaDataType_t(
 	default:
 		break;
 	}
-	OZTCECGEM_NOT_IMPLEMENTED;
+	OZIMMA_NOT_IMPLEMENTED;
 	return CUDA_R_32F;
 }
 
@@ -148,7 +148,7 @@ cublasOperation_t to_cublasOperation_t(
 	default:
 		break;
 	}
-	OZTCECGEM_NOT_IMPLEMENTED;
+	OZIMMA_NOT_IMPLEMENTED;
 	return CUBLAS_OP_N;
 }
 
@@ -467,7 +467,7 @@ void gemm_core(
 		}
 		break;
 	default:
-		OZTCECGEM_NOT_IMPLEMENTED;
+		OZIMMA_NOT_IMPLEMENTED;
 	}
 	handle->profiler.stop_timer_sync(profile_label);
 }
@@ -504,7 +504,7 @@ int mtk::ozimma::gemm(
 		input_type = mtk::ozimma::fp64;
 		break;
 	default:
-		OZTCECGEM_NOT_IMPLEMENTED;
+		OZIMMA_NOT_IMPLEMENTED;
 	}
 
 	if (input_type == mtk::ozimma::fp32) {
@@ -654,10 +654,10 @@ int mtk::ozimma::gemm(
 						nullptr
 						);
 		} else {
-			OZTCECGEM_NOT_IMPLEMENTED;
+			OZIMMA_NOT_IMPLEMENTED;
 		}
 	} else {
-		OZTCECGEM_NOT_IMPLEMENTED;
+		OZIMMA_NOT_IMPLEMENTED;
 	}
 	return 0;
 }

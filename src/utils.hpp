@@ -15,4 +15,4 @@ inline void print_not_implemented(
 } // namespace ozimma
 } // namespace mtk
 
-#define OZTCECGEM_NOT_IMPLEMENTED mtk::ozimma::detail::print_not_implemented(__FILE__, __LINE__, __func__)
+#define OZIMMA_NOT_IMPLEMENTED mtk::ozimma::detail::print_not_implemented(__FILE__, __LINE__, __func__)

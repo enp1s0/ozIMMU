@@ -160,7 +160,7 @@ mtk::ozimma::data_t mtk::ozimma::get_output_type(
 	default:
 		break;
 	}
-	OZTCECGEM_NOT_IMPLEMENTED;
+	OZIMMA_NOT_IMPLEMENTED;
 	return mtk::ozimma::original;
 }
 
