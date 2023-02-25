@@ -119,9 +119,9 @@ mtk::ozimma::operation_t op_cublas2oz(
 mtk::ozimma::handle_t* global_ozimma_handle = nullptr;
 
 mtk::ozimma::handle_t& get_global_ozimma_handle() {
-	global_ozimma_handle = new mtk::ozimma::handle_t;
 	if (global_ozimma_handle == nullptr) {
 		ozIMMA_log("Initializing ozIMMA handle...");
+		global_ozimma_handle = new mtk::ozimma::handle_t;
 		mtk::ozimma::create(global_ozimma_handle);
 	}
 	return *global_ozimma_handle;
@@ -156,6 +156,8 @@ CUBLASAPI cublasStatus_t CUBLASWINAPI cublasDestroy_v2 (cublasHandle_t handle) {
 	mtk::ozimma::destroy(
 			get_global_ozimma_handle()
 			);
+	delete global_ozimma_handle;
+	global_ozimma_handle = nullptr;
 
 	// Run the original function
 	cublasStatus_t (*func_ptr)(cublasHandle_t);
