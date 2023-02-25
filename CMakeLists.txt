@@ -35,7 +35,6 @@ add_library(${lib_name} SHARED
 
 target_include_directories(${lib_name} PUBLIC ${INCDIR})
 target_include_directories(${lib_name} PUBLIC ${SRCDIR}/cutf/include)
-target_include_directories(${lib_name} PUBLIC ${SRCDIR}/matfile/include)
 
 target_link_libraries(${lib_name} PRIVATE
 	cuda
