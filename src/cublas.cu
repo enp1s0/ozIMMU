@@ -153,10 +153,13 @@ CUBLASAPI cublasStatus_t CUBLASWINAPI cublasCreate_v2 (cublasHandle_t *handle) {
 	return CUBLAS_STATUS_NOT_SUPPORTED;
 #else
 	// Allocate memory
-	mtk::ozimma::reallocate_working_memory(
+	const auto reallocated_size = mtk::ozimma::reallocate_working_memory(
 			get_global_ozimma_handle(),
 			get_default_gemm_list()
 			);
+	if (reallocated_size != 0) {
+		ozIMMA_log("Reallocated moery : " + std::to_string(reallocated_size) + " B");
+	}
 
 	// Run the original function
 	return mtk::ozimma::cublasCreate_org(handle);
@@ -199,15 +202,19 @@ CUBLASAPI cublasStatus_t CUBLASWINAPI cublasDgemm_v2 (cublasHandle_t handle,
 	return CUBLAS_STATUS_NOT_SUPPORTED;
 #else
 	const auto compute_mode = get_compute_mode(m, n, k);
-	const auto gemm_config = mtk::ozimma::gemm_list_t {
-		std::tuple<std::size_t, std::size_t, std::size_t, mtk::ozimma::compute_mode_t>{m, n, k, compute_mode}
-	};
 
 	if (compute_mode != mtk::ozimma::dgemm) {
-		mtk::ozimma::reallocate_working_memory(
+		const auto gemm_config = mtk::ozimma::gemm_list_t {
+			std::tuple<std::size_t, std::size_t, std::size_t, mtk::ozimma::compute_mode_t>{m, n, k, compute_mode}
+		};
+
+		const auto reallocated_size = mtk::ozimma::reallocate_working_memory(
 				get_global_ozimma_handle(),
 				gemm_config
 				);
+		if (reallocated_size != 0) {
+			ozIMMA_log("Reallocated moery : " + std::to_string(reallocated_size) + " B");
+		}
 
 		cudaStream_t cuda_stream;
 		CUTF_CHECK_ERROR(cublasGetStream(handle, &cuda_stream));

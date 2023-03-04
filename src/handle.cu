@@ -64,7 +64,7 @@ std::size_t calculate_working_memory_size(
 }
 } // unnamed namespace
 
-void mtk::ozimma::reallocate_working_memory(
+std::size_t mtk::ozimma::reallocate_working_memory(
 		mtk::ozimma::handle_t handle,
 		const std::vector<std::tuple<std::size_t, std::size_t, std::size_t, mtk::ozimma::compute_mode_t>> gemm_list
 		) {
@@ -106,7 +106,10 @@ void mtk::ozimma::reallocate_working_memory(
 
 		// Realloc
 		cudaMalloc(&(handle->working_memory_ptr), handle->current_working_memory_size);
+
+		return max_working_memory_size;
 	}
+	return 0;
 }
 
 std::string mtk::ozimma::get_compute_mode_name_str(

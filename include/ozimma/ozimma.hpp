@@ -46,7 +46,8 @@ void clear_profiler_result(mtk::ozimma::handle_t handle);
 
 using gemm_list_t = std::vector<std::tuple<std::size_t, std::size_t, std::size_t, mtk::ozimma::compute_mode_t>>;
 
-void reallocate_working_memory(
+// ReturnA: memory size if reallocated; otherwise, zero
+std::size_t reallocate_working_memory(
 		mtk::ozimma::handle_t handle,
 		const gemm_list_t gemm_list
 		);
