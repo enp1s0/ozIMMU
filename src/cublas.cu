@@ -1,71 +1,12 @@
-#include <unistd.h>
-#include <dlfcn.h>
 #include <cutf/cublas.hpp>
 #include <ozimma/ozimma.hpp>
 #include "culip.hpp"
 #include "handle.hpp"
+#include "utils.hpp"
 
 #ifndef CUBLASAPI
 #define CUBLASAPI
 #endif
-
-// For logging
-template <class Func>
-void ozTCECGEMM_run_if_env_defined(
-		const std::string env_str,
-		const Func func
-		) {
-	const auto env = getenv(env_str.c_str());
-	if (env != nullptr && std::string(env) != "0") {
-		func();
-	}
-}
-
-
-const std::string info_env_name = "OZIMMA_INFO";
-void ozIMMA_log(
-		const std::string str
-		) {
-	ozTCECGEMM_run_if_env_defined(
-			info_env_name,
-			[&](){
-				std::fprintf(stdout, "[ozIMMA LOG] %s\n",
-						str.c_str());
-				std::fflush(stdout);
-			});
-}
-
-const std::string error_env_name = "OZIMMA_ERROR_LOG";
-void ozIMMA_error(
-		const std::string str
-		) {
-	ozTCECGEMM_run_if_env_defined(
-			error_env_name,
-			[&](){
-				std::fprintf(stdout, "[ozIMMA ERROR] %s\n",
-						str.c_str());
-				std::fflush(stdout);
-			});
-}
-
-void* ozIMMA_get_function_pointer(const std::string library_name, const std::string function_name) {
-
-	// Open the library
-	const auto lib_ptr = dlopen(library_name.c_str(), RTLD_NOW);
-	if (lib_ptr == nullptr) {
-		ozIMMA_error("Failed to load " + library_name + ". Default rule will be used.");
-		return nullptr;
-	}
-
-	// Get function pointer
-	void* function_ptr = dlsym(lib_ptr, function_name.c_str());
-	if (function_ptr == NULL) {
-		ozIMMA_log("Failed to load a function " + function_name + " during selecting hijacking function. Default rule will be used.");
-		return nullptr;
-	}
-
-	return function_ptr;
-}
 
 mtk::ozimma::gemm_list_t get_default_gemm_list() {
 	return mtk::ozimma::gemm_list_t{
@@ -293,13 +234,13 @@ CUBLASAPI cublasStatus_t CUBLASWINAPI cublasDgemm_v2 (cublasHandle_t handle,
 }
 
 CUBLASAPI cublasStatus_t cublasGemmEx(cublasHandle_t handle, cublasOperation_t transa,
-                            cublasOperation_t transb, int m, int n, int k,
-                            const void *alpha, const void *A,
-                            cudaDataType_t Atype, int lda, const void *B,
-                            cudaDataType_t Btype, int ldb, const void *beta,
-														void *C, cudaDataType_t Ctype, int ldc,
-														cublasComputeType_t computeType,
-														cublasGemmAlgo_t algo) {
+		cublasOperation_t transb, int m, int n, int k,
+		const void *alpha, const void *A,
+		cudaDataType_t Atype, int lda, const void *B,
+		cudaDataType_t Btype, int ldb, const void *beta,
+		void *C, cudaDataType_t Ctype, int ldc,
+		cublasComputeType_t computeType,
+		cublasGemmAlgo_t algo) {
 #ifdef __CUDA_ARCH__
 	return CUBLAS_STATUS_NOT_SUPPORTED;
 #else

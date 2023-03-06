@@ -342,6 +342,27 @@ void axby(
 			);
 }
 
+cublasStatus_t cublasGemmEx_org(cublasHandle_t handle, cublasOperation_t transa,
+		cublasOperation_t transb, int m, int n, int k,
+		const void *alpha, const void *A,
+		cudaDataType_t Atype, int lda, const void *B,
+		cudaDataType_t Btype, int ldb, const void *beta,
+		void *C, cudaDataType_t Ctype, int ldc,
+		cublasComputeType_t computeType,
+		cublasGemmAlgo_t algo) {
+	const std::string cublas_library_name = "libcublas.so";
+	const std::string cublas_function_name = "cublasGemmEx";
+	cublasStatus_t (*func_ptr)(cublasHandle_t, cublasOperation_t, cublasOperation_t, int, int, int, const void*, const void*, cudaDataType_t, int, const void*, cudaDataType_t, int, const void*, void*, cudaDataType_t, int, cublasComputeType_t, cublasGemmAlgo_t);
+	*(void**)(&func_ptr) = ozIMMA_get_function_pointer(
+			cublas_library_name.c_str(),
+			cublas_function_name.c_str()
+			);
+
+	const auto res = (*func_ptr)(handle, transa, transb, m, n, k, alpha, A, Atype, lda, B, Btype, ldb, beta, C, Ctype, ldc, computeType, algo);
+
+	return res;
+}
+
 void gemm_core(
 		mtk::ozimma::handle_t handle,
 		const mtk::ozimma::operation_t op_A,
@@ -398,7 +419,7 @@ void gemm_core(
 
 			auto cublas_compute_mode = CUBLAS_COMPUTE_64F;
 
-			CUTF_CHECK_ERROR(cublasGemmEx(
+			CUTF_CHECK_ERROR(cublasGemmEx_org(
 						handle->cublas_handle,
 						op_A_r,
 						op_B_r,
@@ -430,7 +451,7 @@ void gemm_core(
 			else if (gemm_mode == mtk::ozimma::detail::cublas_fp16) cublas_compute_mode = CUBLAS_COMPUTE_32F_FAST_16F;
 			else if (gemm_mode == mtk::ozimma::detail::cublas_tf32) cublas_compute_mode = CUBLAS_COMPUTE_32F_FAST_TF32;
 
-			CUTF_CHECK_ERROR(cublasGemmEx(
+			CUTF_CHECK_ERROR(cublasGemmEx_org(
 						handle->cublas_handle,
 						op_A_r,
 						op_B_r,
@@ -451,7 +472,7 @@ void gemm_core(
 			const auto op_A_r = gemm_pair_config.A_id == 0 ? to_cublasOperation_t(op_A) : CUBLAS_OP_T;
 			const auto op_B_r = gemm_pair_config.B_id == 0 ? to_cublasOperation_t(op_B) : CUBLAS_OP_N;
 
-			CUTF_CHECK_ERROR(cublasGemmEx(
+			CUTF_CHECK_ERROR(cublasGemmEx_org(
 						handle->cublas_handle,
 						op_A_r,
 						op_B_r,
