@@ -23,6 +23,7 @@ export LD_PRELOAD=/path/to/ozIMMA/build/libozimma.so
 ```bash
 export OZIMMA_COMPUTE_MODE=fp64_int8_9
 ```
+The supported compute modes are [here](#supported-compute-mode).
 
 3. Execute the application
 
