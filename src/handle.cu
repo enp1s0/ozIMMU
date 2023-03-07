@@ -10,6 +10,9 @@ int mtk::ozimma::create(
 	// Initialize cuBLAS handler
 	CUTF_CHECK_ERROR(cublasCreate_org(&(handle->cublas_handle)));
 
+	handle->current_working_memory_size = 0;
+	handle->working_memory_ptr = nullptr;
+
 	// Disable profiling by default
 	mtk::ozimma::disable_profiling(*h);
 
@@ -102,10 +105,13 @@ std::size_t mtk::ozimma::reallocate_working_memory(
 
 	if (max_working_memory_size > handle->current_working_memory_size) {
 		handle->current_working_memory_size = max_working_memory_size;
-		cudaFree(handle->working_memory_ptr);
+
+		if (handle->working_memory_ptr != nullptr) {
+			CUTF_CHECK_ERROR(cudaFree(handle->working_memory_ptr));
+		}
 
 		// Realloc
-		cudaMalloc(&(handle->working_memory_ptr), handle->current_working_memory_size);
+		CUTF_CHECK_ERROR(cudaMalloc(&(handle->working_memory_ptr), handle->current_working_memory_size));
 
 		return max_working_memory_size;
 	}

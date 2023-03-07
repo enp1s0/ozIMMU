@@ -30,9 +30,9 @@ void mtk::ozimma::CULiP::print_profile_result(void *profile_result_ptr) {
 }
 
 void mtk::ozimma::CULiP::launch_function(cudaStream_t cuda_stream, void (*fn)(void*), void* const arg) {
-	cudaStreamSynchronize(cuda_stream);
+	CUTF_CHECK_ERROR(cudaStreamSynchronize(cuda_stream));
 	fn(arg);
-	cudaStreamSynchronize(cuda_stream);
+	CUTF_CHECK_ERROR(cudaStreamSynchronize(cuda_stream));
 }
 
 bool mtk::ozimma::CULiP::is_profiling_enabled() {

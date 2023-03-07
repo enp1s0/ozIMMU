@@ -65,6 +65,7 @@ mtk::ozimma::handle_t& get_global_ozimma_handle() {
 		ozIMMA_log("Initializing ozIMMA handle...");
 		global_ozimma_handle = new mtk::ozimma::handle_t;
 		mtk::ozimma::create(global_ozimma_handle);
+		ozIMMA_log("Successfully initialized");
 	}
 	return *global_ozimma_handle;
 }
@@ -164,12 +165,6 @@ CUBLASAPI cublasStatus_t CUBLASWINAPI cublasDgemm_v2 (cublasHandle_t handle,
 		mtk::ozimma::CULiP::profile_result profile_result;
 		const auto profiling_flag = mtk::ozimma::CULiP::is_profiling_enabled();
 
-		cublasStatus_t (*func_ptr)(cublasHandle_t, cublasOperation_t, cublasOperation_t, int, int, int, const double*, const double*, int, const double*, int, const double*, double*, int);
-		*(void**)(&func_ptr) = ozIMMA_get_function_pointer(
-				cublas_library_name,
-				__func__
-				);
-
 		if (profiling_flag) {
 			snprintf(profile_result.function_name, profile_result.function_name_length - 1,
 					"%s-%s%s-m%d-n%d-k%d",
@@ -202,7 +197,7 @@ CUBLASAPI cublasStatus_t CUBLASWINAPI cublasDgemm_v2 (cublasHandle_t handle,
 		return CUBLAS_STATUS_SUCCESS;
 	} else {
 		cudaStream_t cuda_stream;
-		cublasGetStream(handle, &cuda_stream);
+		CUTF_CHECK_ERROR(cublasGetStream(handle, &cuda_stream));
 
 		mtk::ozimma::CULiP::profile_result profile_result;
 		const auto profiling_flag = mtk::ozimma::CULiP::is_profiling_enabled();
@@ -258,7 +253,7 @@ CUBLASAPI cublasStatus_t cublasGemmEx(cublasHandle_t handle, cublasOperation_t t
 	}
 
 	cudaStream_t cuda_stream;
-	cublasGetStream(handle, &cuda_stream);
+	CUTF_CHECK_ERROR(cublasGetStream(handle, &cuda_stream));
 
 	mtk::ozimma::CULiP::profile_result profile_result;
 	const auto profiling_flag = mtk::ozimma::CULiP::is_profiling_enabled();
