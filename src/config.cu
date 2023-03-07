@@ -1,53 +1,53 @@
 #include "config.hpp"
 #include "utils.hpp"
 
-mtk::oztcecgemm::detail::split_config_t mtk::oztcecgemm::detail::get_split_config(
-		const mtk::oztcecgemm::compute_mode_t compute_mode
+mtk::ozimma::detail::split_config_t mtk::ozimma::detail::get_split_config(
+		const mtk::ozimma::compute_mode_t compute_mode
 		) {
 	switch (compute_mode) {
-	case mtk::oztcecgemm::sgemm:
+	case mtk::ozimma::sgemm:
 		return split_config_t {
 			{original},
 			{original},
 			{{0, 0, detail::cublas_sgemm}}
 		};
-	case mtk::oztcecgemm::dgemm:
+	case mtk::ozimma::dgemm:
 		return split_config_t {
 			{original},
 			{original},
 			{{0, 0, detail::cublas_dgemm}}
 		};
-	case mtk::oztcecgemm::fp64_int8_6:
-	case mtk::oztcecgemm::fp64_int8_7:
-	case mtk::oztcecgemm::fp64_int8_8:
-	case mtk::oztcecgemm::fp64_int8_9:
-	case mtk::oztcecgemm::fp64_int8_10:
-	case mtk::oztcecgemm::fp64_int8_11:
-	case mtk::oztcecgemm::fp64_int8_12:
-	case mtk::oztcecgemm::fp64_int8_13:
+	case mtk::ozimma::fp64_int8_6:
+	case mtk::ozimma::fp64_int8_7:
+	case mtk::ozimma::fp64_int8_8:
+	case mtk::ozimma::fp64_int8_9:
+	case mtk::ozimma::fp64_int8_10:
+	case mtk::ozimma::fp64_int8_11:
+	case mtk::ozimma::fp64_int8_12:
+	case mtk::ozimma::fp64_int8_13:
 		{
 			unsigned num_split = 0;
-			if (compute_mode == mtk::oztcecgemm::fp64_int8_6 ) {num_split = 6;}
-			if (compute_mode == mtk::oztcecgemm::fp64_int8_7 ) {num_split = 7;}
-			if (compute_mode == mtk::oztcecgemm::fp64_int8_8 ) {num_split = 8;}
-			if (compute_mode == mtk::oztcecgemm::fp64_int8_9 ) {num_split = 9;}
-			if (compute_mode == mtk::oztcecgemm::fp64_int8_10) {num_split = 10;}
-			if (compute_mode == mtk::oztcecgemm::fp64_int8_11) {num_split = 11;}
-			if (compute_mode == mtk::oztcecgemm::fp64_int8_12) {num_split = 12;}
-			if (compute_mode == mtk::oztcecgemm::fp64_int8_13) {num_split = 13;}
+			if (compute_mode == mtk::ozimma::fp64_int8_6 ) {num_split = 6;}
+			if (compute_mode == mtk::ozimma::fp64_int8_7 ) {num_split = 7;}
+			if (compute_mode == mtk::ozimma::fp64_int8_8 ) {num_split = 8;}
+			if (compute_mode == mtk::ozimma::fp64_int8_9 ) {num_split = 9;}
+			if (compute_mode == mtk::ozimma::fp64_int8_10) {num_split = 10;}
+			if (compute_mode == mtk::ozimma::fp64_int8_11) {num_split = 11;}
+			if (compute_mode == mtk::ozimma::fp64_int8_12) {num_split = 12;}
+			if (compute_mode == mtk::ozimma::fp64_int8_13) {num_split = 13;}
 
 			// Data
-			std::vector<mtk::oztcecgemm::data_t> split_types(num_split + 1);
-			std::fill(split_types.begin(), split_types.end(), mtk::oztcecgemm::int8);
-			split_types[0] = mtk::oztcecgemm::original;
+			std::vector<mtk::ozimma::data_t> split_types(num_split + 1);
+			std::fill(split_types.begin(), split_types.end(), mtk::ozimma::int8);
+			split_types[0] = mtk::ozimma::original;
 
 			// Computation
-			std::vector<mtk::oztcecgemm::detail::gemm_pair_config_t> gemm_pair_list;
+			std::vector<mtk::ozimma::detail::gemm_pair_config_t> gemm_pair_list;
 			for (int sum = 2; sum <= num_split + 1; sum++) {
 				for (int j = 1; j < sum; j++) {
 					if (j > num_split || sum - j > num_split)
 						continue;
-					gemm_pair_list.push_back({j, sum - j, mtk::oztcecgemm::detail::int8tc});
+					gemm_pair_list.push_back({j, sum - j, mtk::ozimma::detail::int8tc});
 				}
 			}
 
@@ -63,8 +63,8 @@ mtk::oztcecgemm::detail::split_config_t mtk::oztcecgemm::detail::get_split_confi
 	return split_config_t{{}, {}};
 }
 
-std::string mtk::oztcecgemm::detail::gemm_mode_str(
-		const mtk::oztcecgemm::detail::gemm_t gemm_mode
+std::string mtk::ozimma::detail::gemm_mode_str(
+		const mtk::ozimma::detail::gemm_t gemm_mode
 		) {
 #define GEMM_MODE_STR_CASE(mode) case mode: return #mode
 	switch (gemm_mode) {

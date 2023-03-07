@@ -115,7 +115,7 @@ template <class INPUT_T>
 void split_int8_A(
 		std::int8_t* const out_ptr,
 		INPUT_T* const max_exp_ptr,
-		const mtk::oztcecgemm::operation_t op,
+		const mtk::ozimma::operation_t op,
 		const std::size_t m,
 		const std::size_t n,
 		const INPUT_T* const in_ptr,
@@ -127,7 +127,7 @@ void split_int8_A(
 	const dim3 block_size = 256;
 	const dim3 grid_size = m;
 
-	const bool is_col_major = op == mtk::oztcecgemm::op_n;
+	const bool is_col_major = op == mtk::ozimma::op_n;
 
 	using MANTISSA_T = __uint128_t;
 	split_int8_kernel<INPUT_T, MANTISSA_T>
@@ -146,20 +146,20 @@ void split_int8_A(
 } // unnamed namespace
 
 template <class T>
-void mtk::oztcecgemm::split_int8(
+void mtk::ozimma::split_int8(
 		std::int8_t* const out_ptr,
 		T* const max_exp_ptr,
 		const std::size_t m,
 		const std::size_t n,
 		const T* const in_ptr,
 		const std::size_t ld,
-		const mtk::oztcecgemm::operation_t op,
-		const mtk::oztcecgemm::detail::matrix_t matrix,
+		const mtk::ozimma::operation_t op,
+		const mtk::ozimma::detail::matrix_t matrix,
 		const unsigned num_split,
 		const unsigned bits_per_int8,
 		const cudaStream_t cuda_stream
 		) {
-	if (matrix == mtk::oztcecgemm::detail::matrix_A) {
+	if (matrix == mtk::ozimma::detail::matrix_A) {
 		split_int8_A(
 				out_ptr,
 				max_exp_ptr,
@@ -174,7 +174,7 @@ void mtk::oztcecgemm::split_int8(
 		split_int8_A(
 				out_ptr,
 				max_exp_ptr,
-				op == mtk::oztcecgemm::op_n ? mtk::oztcecgemm::op_t : mtk::oztcecgemm::op_n,
+				op == mtk::ozimma::op_n ? mtk::ozimma::op_t : mtk::ozimma::op_n,
 				n, m,
 				in_ptr, ld,
 				num_split,
@@ -185,15 +185,15 @@ void mtk::oztcecgemm::split_int8(
 }
 // Instance
 template
-void mtk::oztcecgemm::split_int8<double>(
+void mtk::ozimma::split_int8<double>(
 		std::int8_t* const out_ptr,
 		double* const max_exp_ptr,
 		const std::size_t m,
 		const std::size_t n,
 		const double* const in_ptr,
 		const std::size_t ld,
-		const mtk::oztcecgemm::operation_t op,
-		const mtk::oztcecgemm::detail::matrix_t matrix,
+		const mtk::ozimma::operation_t op,
+		const mtk::ozimma::detail::matrix_t matrix,
 		const unsigned num_split,
 		const unsigned bits_per_int8,
 		const cudaStream_t cuda_stream

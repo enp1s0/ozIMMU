@@ -1,9 +1,9 @@
 #pragma once
-#include <oztcecgemm/oztcecgemm.hpp>
+#include <ozimma/ozimma.hpp>
 #include <cutf/cublas.hpp>
 #include <cutf/debug/time_breakdown.hpp>
 
-struct mtk::oztcecgemm::handle {
+struct mtk::ozimma::handle {
 	// handlers
 	cublasHandle_t cublas_handle;
 	cudaStream_t cuda_stream;
@@ -15,3 +15,15 @@ struct mtk::oztcecgemm::handle {
 	// profiling
 	cutf::debug::time_breakdown::profiler profiler;
 };
+
+namespace mtk {
+namespace ozimma {
+cublasStatus_t cublasCreate_org(
+		cublasHandle_t* handle_ptr
+		);
+
+cublasStatus_t cublasDestroy_org(
+		cublasHandle_t handle_ptr
+		);
+} // namespace ozimma
+} // namespace mtk

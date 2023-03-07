@@ -1,9 +1,9 @@
 #pragma once
 #include <vector>
-#include <oztcecgemm/oztcecgemm.hpp>
+#include <ozimma/ozimma.hpp>
 
 namespace mtk {
-namespace oztcecgemm {
+namespace ozimma {
 namespace detail {
 
 enum matrix_t {
@@ -40,11 +40,11 @@ struct split_config_t {
 };
 
 split_config_t get_split_config(
-		const mtk::oztcecgemm::compute_mode_t compute_mode
+		const mtk::ozimma::compute_mode_t compute_mode
 		);
 
 std::string gemm_mode_str(const gemm_t gemm_mode);
 
 } // namespace detail
-} // namespace oztcecgemm
+} // namespace ozimma
 } // namespace mtk
