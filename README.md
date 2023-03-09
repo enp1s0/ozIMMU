@@ -51,6 +51,9 @@ export OZIMMA_ERROR=1
 
 # Show CULiP ( https://github.com/enp1s0/CULiP ) log
 export OZIMMA_ENABLE_CULIP_PROFILING=1
+
+# Choose malloc mode
+export OZIMMA_MALLOC_ASYNC=1
 ```
 
 ## License

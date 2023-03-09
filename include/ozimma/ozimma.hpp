@@ -35,7 +35,12 @@ enum data_t {
 	original
 };
 
-int create (mtk::ozimma::handle_t* handle);
+enum malloc_mode_t {
+	malloc_sync,
+	malloc_async
+};
+
+int create (mtk::ozimma::handle_t* handle, const malloc_mode_t mm = malloc_async);
 int destroy(mtk::ozimma::handle_t handle);
 void set_cuda_stream(mtk::ozimma::handle_t handle, const cudaStream_t cuda_stream);
 

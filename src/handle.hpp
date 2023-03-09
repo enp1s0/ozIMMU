@@ -14,6 +14,9 @@ struct mtk::ozimma::handle {
 
 	// profiling
 	cutf::debug::time_breakdown::profiler profiler;
+
+	// Malloc mode flag
+	malloc_mode_t malloc_mode;
 };
 
 namespace mtk {
