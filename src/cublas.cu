@@ -62,9 +62,14 @@ mtk::ozimma::handle_t* global_ozimma_handle = nullptr;
 
 mtk::ozimma::handle_t& get_global_ozimma_handle() {
 	if (global_ozimma_handle == nullptr) {
+		mtk::ozimma::malloc_mode_t malloc_mode = mtk::ozimma::malloc_sync;
+		ozTCECGEMM_run_if_env_defined(
+				"OZIMMA_MALLOC_ASYNC",
+				[&](){malloc_mode = mtk::ozimma::malloc_async;}
+				);
 		ozIMMA_log("Initializing ozIMMA handle...");
 		global_ozimma_handle = new mtk::ozimma::handle_t;
-		mtk::ozimma::create(global_ozimma_handle);
+		mtk::ozimma::create(global_ozimma_handle, malloc_mode);
 		ozIMMA_log("Successfully initialized");
 	}
 	return *global_ozimma_handle;
@@ -150,6 +155,10 @@ CUBLASAPI cublasStatus_t CUBLASWINAPI cublasDgemm_v2 (cublasHandle_t handle,
 			std::tuple<std::size_t, std::size_t, std::size_t, mtk::ozimma::compute_mode_t>{m, n, k, compute_mode}
 		};
 
+		cudaStream_t cuda_stream;
+		CUTF_CHECK_ERROR(cublasGetStream(handle, &cuda_stream));
+		mtk::ozimma::set_cuda_stream(get_global_ozimma_handle(), cuda_stream);
+
 		const auto reallocated_size = mtk::ozimma::reallocate_working_memory(
 				get_global_ozimma_handle(),
 				gemm_config
@@ -157,10 +166,6 @@ CUBLASAPI cublasStatus_t CUBLASWINAPI cublasDgemm_v2 (cublasHandle_t handle,
 		if (reallocated_size != 0) {
 			ozIMMA_log("Reallocated moery : " + std::to_string(reallocated_size) + " B");
 		}
-
-		cudaStream_t cuda_stream;
-		CUTF_CHECK_ERROR(cublasGetStream(handle, &cuda_stream));
-		mtk::ozimma::set_cuda_stream(get_global_ozimma_handle(), cuda_stream);
 
 		mtk::ozimma::CULiP::profile_result profile_result;
 		const auto profiling_flag = mtk::ozimma::CULiP::is_profiling_enabled();

@@ -4,7 +4,8 @@
 #include "utils.hpp"
 
 int mtk::ozimma::create(
-		mtk::ozimma::handle_t *h
+		mtk::ozimma::handle_t *h,
+		mtk::ozimma::malloc_mode_t mm
 		) {
 	auto handle = (*h = new mtk::ozimma::handle);
 	// Initialize cuBLAS handler
@@ -12,6 +13,7 @@ int mtk::ozimma::create(
 
 	handle->current_working_memory_size = 0;
 	handle->working_memory_ptr = nullptr;
+	handle->malloc_mode = mm;
 
 	// Disable profiling by default
 	mtk::ozimma::disable_profiling(*h);
@@ -107,11 +109,19 @@ std::size_t mtk::ozimma::reallocate_working_memory(
 		handle->current_working_memory_size = max_working_memory_size;
 
 		if (handle->working_memory_ptr != nullptr) {
-			CUTF_CHECK_ERROR(cudaFree(handle->working_memory_ptr));
+			if (handle->malloc_mode == mtk::ozimma::malloc_sync) {
+				CUTF_CHECK_ERROR(cudaFree(handle->working_memory_ptr));
+			} else {
+				CUTF_CHECK_ERROR(cudaFreeAsync(handle->working_memory_ptr, handle->cuda_stream));
+			}
 		}
 
 		// Realloc
-		CUTF_CHECK_ERROR(cudaMalloc(&(handle->working_memory_ptr), handle->current_working_memory_size));
+		if (handle->malloc_mode == mtk::ozimma::malloc_sync) {
+			CUTF_CHECK_ERROR(cudaMalloc(&(handle->working_memory_ptr), handle->current_working_memory_size));
+		} else {
+			CUTF_CHECK_ERROR(cudaMallocAsync(&(handle->working_memory_ptr), handle->current_working_memory_size, handle->cuda_stream));
+		}
 
 		return max_working_memory_size;
 	}
