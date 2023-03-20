@@ -40,6 +40,11 @@ enum malloc_mode_t {
 	malloc_async
 };
 
+enum element_kind_t {
+	real,
+	complx,
+};
+
 int create (mtk::ozimma::handle_t* handle, const malloc_mode_t mm = malloc_async);
 int destroy(mtk::ozimma::handle_t handle);
 void set_cuda_stream(mtk::ozimma::handle_t handle, const cudaStream_t cuda_stream);
@@ -49,7 +54,7 @@ void disable_profiling(mtk::ozimma::handle_t handle);
 void print_profiler_result(mtk::ozimma::handle_t handle, const bool csv = false);
 void clear_profiler_result(mtk::ozimma::handle_t handle);
 
-using gemm_list_t = std::vector<std::tuple<std::size_t, std::size_t, std::size_t, mtk::ozimma::compute_mode_t>>;
+using gemm_list_t = std::vector<std::tuple<std::size_t, std::size_t, std::size_t, mtk::ozimma::element_kind_t, mtk::ozimma::compute_mode_t>>;
 
 // ReturnA: memory size if reallocated; otherwise, zero
 std::size_t reallocate_working_memory(
@@ -69,7 +74,8 @@ int gemm(
 		const void* const b_ptr, const std::size_t ldb,
 		const void* beta,
 		void* const c_ptr, std::size_t ldc,
-		const mtk::ozimma::compute_mode_t compute_mode
+		const mtk::ozimma::compute_mode_t compute_mode,
+		const mtk::ozimma::element_kind_t element_kind
 		);
 
 std::string get_compute_mode_name_str(

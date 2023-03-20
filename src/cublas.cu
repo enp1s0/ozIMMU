@@ -10,7 +10,7 @@
 
 mtk::ozimma::gemm_list_t get_default_gemm_list() {
 	return mtk::ozimma::gemm_list_t{
-		std::tuple<std::size_t, std::size_t, std::size_t, mtk::ozimma::compute_mode_t>{1024, 1024, 1024, mtk::ozimma::fp64_int8_9}
+		std::tuple<std::size_t, std::size_t, std::size_t, mtk::ozimma::element_kind_t, mtk::ozimma::compute_mode_t>{1024, 1024, 1024, mtk::ozimma::real, mtk::ozimma::fp64_int8_9}
 	};
 }
 
@@ -152,7 +152,7 @@ CUBLASAPI cublasStatus_t CUBLASWINAPI cublasDgemm_v2 (cublasHandle_t handle,
 
 	if (compute_mode != mtk::ozimma::dgemm) {
 		const auto gemm_config = mtk::ozimma::gemm_list_t {
-			std::tuple<std::size_t, std::size_t, std::size_t, mtk::ozimma::compute_mode_t>{m, n, k, compute_mode}
+			std::tuple<std::size_t, std::size_t, std::size_t, mtk::ozimma::element_kind_t, mtk::ozimma::compute_mode_t>{m, n, k, mtk::ozimma::real, compute_mode}
 		};
 
 		cudaStream_t cuda_stream;
@@ -188,7 +188,8 @@ CUBLASAPI cublasStatus_t CUBLASWINAPI cublasDgemm_v2 (cublasHandle_t handle,
 				B, ldb,
 				beta,
 				C, ldc,
-				compute_mode
+				compute_mode,
+				mtk::ozimma::real
 				);
 
 		if (profiling_flag) {

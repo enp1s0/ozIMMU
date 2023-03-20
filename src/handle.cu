@@ -43,35 +43,9 @@ void mtk::ozimma::set_cuda_stream(
 	handle->cuda_stream = cuda_stream;
 }
 
-// working memory size calculation
-namespace {
-std::size_t calculate_working_memory_size(
-		const std::size_t m,
-		const std::size_t n,
-		const mtk::ozimma::compute_mode_t compute_mode,
-		const mtk::ozimma::detail::matrix_t matrix
-		) {
-	const auto split_config = mtk::ozimma::detail::get_split_config(compute_mode);
-
-	decltype(split_config.matrix_A_split_types) split_data_types;
-	if (matrix == mtk::ozimma::detail::matrix_A) {
-		split_data_types = split_config.matrix_A_split_types;
-	} else {
-		split_data_types = split_config.matrix_B_split_types;
-	}
-
-	std::size_t sum_data_type_size = 0;
-	for (const auto d : split_data_types) {
-		sum_data_type_size += mtk::ozimma::get_data_size_in_byte(d);
-	}
-
-	return sum_data_type_size * m * n;
-}
-} // unnamed namespace
-
 std::size_t mtk::ozimma::reallocate_working_memory(
 		mtk::ozimma::handle_t handle,
-		const std::vector<std::tuple<std::size_t, std::size_t, std::size_t, mtk::ozimma::compute_mode_t>> gemm_list
+		const mtk::ozimma::gemm_list_t gemm_list
 		) {
 	std::size_t max_working_memory_size = 0;
 
@@ -79,12 +53,13 @@ std::size_t mtk::ozimma::reallocate_working_memory(
 		const auto m = std::get<0>(gemm);
 		const auto n = std::get<1>(gemm);
 		const auto k = std::get<2>(gemm);
-		const auto mode = std::get<3>(gemm);
+		const auto element_kind = std::get<3>(gemm);
+		const auto mode = std::get<4>(gemm);
 
-		const auto working_memory_A = calculate_working_memory_size(m, k, mode, detail::matrix_A);
-		const auto working_memory_B = calculate_working_memory_size(k, n, mode, detail::matrix_B);
+		const auto working_memory_A = mtk::ozimma::detail::calculate_working_memory_size(m, k, mode, detail::matrix_A, element_kind);
+		const auto working_memory_B = mtk::ozimma::detail::calculate_working_memory_size(k, n, mode, detail::matrix_B, element_kind);
 		const auto working_memory_C_fp32 = m * n * mtk::ozimma::get_data_size_in_byte(fp32);
-		const auto working_memory_C_fp64 = m * n * mtk::ozimma::get_data_size_in_byte(fp64);
+		const auto working_memory_C_fp64 = m * n * mtk::ozimma::get_data_size_in_byte(fp64) * (element_kind == mtk::ozimma::real ? 1 : 2);
 		std::size_t etc = 0;
 		if (
 				mode == mtk::ozimma::fp64_int8_6  ||
@@ -96,7 +71,7 @@ std::size_t mtk::ozimma::reallocate_working_memory(
 				mode == mtk::ozimma::fp64_int8_12 ||
 				mode == mtk::ozimma::fp64_int8_13
 			 ) {
-			etc = (m + n) * mtk::ozimma::get_data_size_in_byte(fp64);
+			etc = (m + n) * mtk::ozimma::get_data_size_in_byte(fp64) * (element_kind == mtk::ozimma::real ? 1 : 2);
 		}
 
 		max_working_memory_size = std::max(

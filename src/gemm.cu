@@ -83,9 +83,9 @@ void split_AB_int8(
 		const std::size_t n,
 		const std::size_t k,
 		const T* const a_ptr, const std::size_t lda,
-		T* const a_max_exp_ptr,
+		double* const a_max_exp_ptr,
 		const T* const b_ptr, const std::size_t ldb,
-		T* const b_max_exp_ptr,
+		double* const b_max_exp_ptr,
 		const unsigned num_split,
 		const unsigned bits_per_int8
 		) {
@@ -239,54 +239,6 @@ void init_accumulator_buffer(
 			);
 }
 
-template <class Y_T>
-__global__ void axby_kernel(
-		const std::size_t m,
-		const std::size_t n,
-		const double a,
-		const double* const x_ptr,
-		const double b,
-		Y_T* const y_ptr,
-		const std::size_t ldy
-		) {
-	const auto tid = blockIdx.x * blockDim.x + threadIdx.x;
-	if (tid >= m * n) {
-		return;
-	}
-
-	const auto mi = tid % m;
-	const auto ni = tid / m;
-
-	const auto memory_index = ni * ldy + mi;
-
-	if (b != 0) {
-		y_ptr[memory_index] = a * x_ptr[tid] + b * y_ptr[memory_index];
-	} else {
-		y_ptr[memory_index] = a * x_ptr[tid];
-	}
-}
-
-template <class Y_T>
-void axby(
-		const std::size_t m,
-		const std::size_t n,
-		const double a,
-		const double* const x_ptr,
-		const double b,
-		Y_T* const y_ptr, const std::size_t ldy,
-		cudaStream_t cuda_stream
-		) {
-	constexpr std::size_t block_size = 256;
-	axby_kernel
-		<<<(m * n + block_size - 1) / block_size, block_size, 0, cuda_stream>>>(
-				m, n,
-				a,
-				x_ptr,
-				b,
-				y_ptr, ldy
-			);
-}
-
 __global__ void axby_kernel(
 		const std::size_t m,
 		const std::size_t n,
@@ -342,6 +294,118 @@ void axby(
 			);
 }
 
+__global__ void axy_complex_kernel(
+		const std::size_t m,
+		const std::size_t n,
+		const cuDoubleComplex a,
+		const double* const x_ptr,
+		cuDoubleComplex* const y_ptr,
+		const std::size_t ldy,
+		const double* const a_max_exp_ptr,
+		const double* const b_max_exp_ptr
+		) {
+	const auto tid = blockIdx.x * blockDim.x + threadIdx.x;
+	if (tid >= m * n) {
+		return;
+	}
+
+	const auto mi = tid % m;
+	const auto ni = tid / m;
+
+	const auto memory_index = ni * ldy + mi;
+
+	const auto x = x_ptr[tid] / (1l << 44) * a_max_exp_ptr[mi] * b_max_exp_ptr[ni];
+
+	auto y = y_ptr[memory_index];
+
+	y.x = a.x * x + y.x;
+	y.y = a.y * x + y.y;
+
+	y_ptr[memory_index] = y;
+}
+
+
+void axy_complex(
+		const std::size_t m,
+		const std::size_t n,
+		const cuDoubleComplex a,
+		const double* const x_ptr,
+		cuDoubleComplex* const y_ptr,
+		const std::size_t ldy,
+		const double* const a_max_exp_ptr,
+		const double* const b_max_exp_ptr,
+		cudaStream_t cuda_stream
+		) {
+	constexpr std::size_t block_size = 256;
+	axy_complex_kernel
+		<<<(m * n + block_size - 1) / block_size, block_size, 0, cuda_stream>>>(
+				m, n,
+				a,
+				x_ptr,
+				y_ptr, ldy,
+				a_max_exp_ptr,
+				b_max_exp_ptr
+			);
+}
+
+template <bool is_beta_zero>
+__global__ void init_c_complex_kernel(
+		const std::size_t m,
+		const std::size_t n,
+		cuDoubleComplex* const c_ptr,
+		const std::size_t ldc,
+		const cuDoubleComplex beta
+		) {
+	const auto tid = blockIdx.x * blockDim.x + threadIdx.x;
+	if (tid >= m * n) {
+		return;
+	}
+
+	const auto mi = tid % m;
+	const auto ni = tid / m;
+
+	const auto memory_index = ni * ldc + mi;
+
+	if (is_beta_zero) {
+		c_ptr[memory_index] = make_cuDoubleComplex(0, 0);
+	} else {
+		auto c = c_ptr[memory_index];
+		c.x = c.x * beta.x - c.y * beta.y;
+		c.y = c.y * beta.x + c.x * beta.y;
+
+		c_ptr[memory_index] = c;
+	}
+}
+
+void init_c_complex(
+		const std::size_t m,
+		const std::size_t n,
+		cuDoubleComplex* const c_ptr,
+		const std::size_t ldc,
+		const cuDoubleComplex beta,
+		cudaStream_t cuda_stream
+		) {
+	constexpr std::size_t block_size = 256;
+
+	if (beta.x == 0 && beta.y == 0) {
+		init_c_complex_kernel<true>
+			<<<(m * n + block_size - 1) / block_size, block_size, 0, cuda_stream>>>(
+					m, n,
+					c_ptr,
+					ldc,
+					beta
+					);
+	} else {
+		init_c_complex_kernel<false>
+			<<<(m * n + block_size - 1) / block_size, block_size, 0, cuda_stream>>>(
+					m, n,
+					c_ptr,
+					ldc,
+					beta
+					);
+	}
+}
+
 cublasStatus_t cublasGemmEx_org(cublasHandle_t handle, cublasOperation_t transa,
 		cublasOperation_t transb, int m, int n, int k,
 		const void *alpha, const void *A,
@@ -375,7 +439,8 @@ void gemm_core(
 		void* const c_ptr,
 		const mtk::ozimma::detail::gemm_pair_config_t& gemm_pair_config,
 		const mtk::ozimma::compute_mode_t compute_mode,
-		void* const working_memory_ptr
+		const void* const a_working_memory_ptr,
+		const void* const b_working_memory_ptr
 		) {
 	const auto gemm_mode = gemm_pair_config.gemm_mode;
 	const auto split_config = mtk::ozimma::detail::get_split_config(compute_mode);
@@ -389,16 +454,13 @@ void gemm_core(
 	}
 
 	std::size_t B_working_ptr_offset = 0;
-	for (const auto t : split_config.matrix_A_split_types) {
-		B_working_ptr_offset += m * k * mtk::ozimma::get_data_size_in_byte(t);
-	}
 	for (unsigned i = 0; i < gemm_pair_config.B_id; i++) {
 		const auto t = split_config.matrix_B_split_types[i];
 		B_working_ptr_offset += k * n * mtk::ozimma::get_data_size_in_byte(t);
 	}
 
-	void* const a_working_ptr = reinterpret_cast<std::uint8_t*>(working_memory_ptr) + A_working_ptr_offset;
-	void* const b_working_ptr = reinterpret_cast<std::uint8_t*>(working_memory_ptr) + B_working_ptr_offset;
+	const void* const a_working_ptr = reinterpret_cast<const std::uint8_t*>(a_working_memory_ptr) + A_working_ptr_offset;
+	const void* const b_working_ptr = reinterpret_cast<const std::uint8_t*>(b_working_memory_ptr) + B_working_ptr_offset;
 
 	const void* const a_ptr_r = gemm_pair_config.A_id == 0 ? a_ptr : a_working_ptr;
 	const void* const b_ptr_r = gemm_pair_config.B_id == 0 ? b_ptr : b_working_ptr;
@@ -492,6 +554,229 @@ void gemm_core(
 	}
 	handle->profiler.stop_timer_sync(profile_label);
 }
+
+template <class T>
+int gemm_int8(
+		mtk::ozimma::handle_t handle,
+		const mtk::ozimma::operation_t op_A,
+		const mtk::ozimma::operation_t op_B,
+		const std::size_t m,
+		const std::size_t n,
+		const std::size_t k,
+		const T* alpha,
+		const T* const a_ptr, const std::size_t lda,
+		const T* const b_ptr, const std::size_t ldb,
+		const T* beta,
+		T* const c_ptr, std::size_t ldc,
+		const mtk::ozimma::compute_mode_t compute_mode
+		);
+
+template <>
+int gemm_int8<double>(
+		mtk::ozimma::handle_t handle,
+		const mtk::ozimma::operation_t op_A,
+		const mtk::ozimma::operation_t op_B,
+		const std::size_t m,
+		const std::size_t n,
+		const std::size_t k,
+		const double* alpha,
+		const double* const a_ptr, const std::size_t lda,
+		const double* const b_ptr, const std::size_t ldb,
+		const double* beta,
+		double* const c_ptr, std::size_t ldc,
+		const mtk::ozimma::compute_mode_t compute_mode
+		) {
+	const unsigned num_split = mtk::ozimma::detail::get_split_config(compute_mode).matrix_A_split_types.size() - 1;
+	const auto bits_per_int8 = std::min<unsigned>(7u, std::ceil((31 - std::log2(k) / 2.)));
+
+	std::int32_t* const c_i32_ptr = reinterpret_cast<std::int32_t*>(handle->working_memory_ptr);
+	double* const c_f64_ptr = reinterpret_cast<double*>(c_i32_ptr + m * n);
+	double* const a_max_exp_ptr = reinterpret_cast<double*>(c_f64_ptr + m * n);
+	double* const b_max_exp_ptr = a_max_exp_ptr + m;
+	void* const working_memory_ptr = b_max_exp_ptr + n;
+
+	init_accumulator_buffer(
+			c_f64_ptr,
+			m * n,
+			handle->cuda_stream
+			);
+
+	split_AB_int8<double>(
+			handle,
+			working_memory_ptr,
+			op_A,
+			op_B,
+			m, n, k, a_ptr, lda,
+			a_max_exp_ptr,
+			b_ptr, ldb,
+			b_max_exp_ptr,
+			num_split,
+			bits_per_int8
+			);
+
+	std::size_t A_working_memory_size = mtk::ozimma::detail::calculate_working_memory_size(m, n, compute_mode, mtk::ozimma::detail::matrix_A, mtk::ozimma::real);
+
+	const auto& gemm_pair_config_list = mtk::ozimma::detail::get_split_config(compute_mode).gemm_pair_config_list;
+	for (const auto& gemm_pair_config : gemm_pair_config_list) {
+		gemm_core(
+				handle,
+				op_A, op_B,
+				m, n, k,
+				a_ptr, lda, mtk::ozimma::fp64,
+				b_ptr, ldb, mtk::ozimma::fp64,
+				c_i32_ptr,
+				gemm_pair_config,
+				compute_mode,
+				working_memory_ptr,
+				reinterpret_cast<std::uint8_t*>(working_memory_ptr) + A_working_memory_size
+				);
+		handle->profiler.start_timer_sync("accumulate_in_f64");
+		accumulate_in_f64(
+				c_f64_ptr,
+				c_i32_ptr,
+				m * n,
+				bits_per_int8 * (gemm_pair_config.A_id + gemm_pair_config.B_id - 2),
+				handle->cuda_stream
+				);
+		handle->profiler.stop_timer_sync("accumulate_in_f64");
+	}
+	handle->profiler.start_timer_sync("copy_result");
+	axby(
+			m, n,
+			*alpha,
+			c_f64_ptr,
+			*beta,
+			c_ptr, ldc,
+			a_max_exp_ptr,
+			b_max_exp_ptr,
+			handle->cuda_stream
+			);
+	handle->profiler.stop_timer_sync("copy_result");
+}
+
+template <>
+int gemm_int8<cuDoubleComplex>(
+		mtk::ozimma::handle_t handle,
+		const mtk::ozimma::operation_t op_A,
+		const mtk::ozimma::operation_t op_B,
+		const std::size_t m,
+		const std::size_t n,
+		const std::size_t k,
+		const cuDoubleComplex* alpha,
+		const cuDoubleComplex* const a_ptr, const std::size_t lda,
+		const cuDoubleComplex* const b_ptr, const std::size_t ldb,
+		const cuDoubleComplex* beta,
+		cuDoubleComplex* const c_ptr, std::size_t ldc,
+		const mtk::ozimma::compute_mode_t compute_mode
+		) {
+	using real_t = double;
+	const unsigned num_split = mtk::ozimma::detail::get_split_config(compute_mode).matrix_A_split_types.size() - 1;
+	const auto bits_per_int8 = std::min<unsigned>(7u, std::ceil((31 - std::log2(k) / 2.)));
+	const auto& gemm_pair_config_list = mtk::ozimma::detail::get_split_config(compute_mode).gemm_pair_config_list;
+
+	std::int32_t* const c_i32_ptr = reinterpret_cast<std::int32_t*>(handle->working_memory_ptr);
+	double* const tmp_f64_ptr = reinterpret_cast<double*>(c_i32_ptr + m * n);
+	double* const a_real_max_exp_ptr = reinterpret_cast<double*>(tmp_f64_ptr + m * n);
+	double* const a_imag_max_exp_ptr = a_real_max_exp_ptr + m;
+	double* const b_real_max_exp_ptr = a_imag_max_exp_ptr + m;
+	double* const b_imag_max_exp_ptr = b_real_max_exp_ptr + n;
+	void* const working_memory_ptr = b_imag_max_exp_ptr + n;
+
+	const double* a_max_exp_ptr_list[] = {
+		a_real_max_exp_ptr,
+		a_imag_max_exp_ptr
+	};
+	const std::int8_t* a_int8_working_memory_ptr_list[] = {
+		reinterpret_cast<const std::int8_t*>(working_memory_ptr),
+		reinterpret_cast<const std::int8_t*>(working_memory_ptr) + mtk::ozimma::detail::calculate_working_memory_size(m, k, compute_mode, mtk::ozimma::detail::matrix_A, mtk::ozimma::real),
+	};
+
+	const double* b_max_exp_ptr_list[] = {
+		b_real_max_exp_ptr,
+		b_imag_max_exp_ptr
+	};
+	const std::int8_t* b_int8_working_memory_ptr_list[] = {
+		a_int8_working_memory_ptr_list[0] + mtk::ozimma::detail::calculate_working_memory_size(m, k, compute_mode, mtk::ozimma::detail::matrix_A, mtk::ozimma::complx),
+		a_int8_working_memory_ptr_list[0] + mtk::ozimma::detail::calculate_working_memory_size(m, k, compute_mode, mtk::ozimma::detail::matrix_A, mtk::ozimma::complx) + mtk::ozimma::detail::calculate_working_memory_size(k, n, compute_mode, mtk::ozimma::detail::matrix_B, mtk::ozimma::real),
+	};
+
+	split_AB_int8<cuDoubleComplex>(
+			handle,
+			working_memory_ptr,
+			op_A,
+			op_B,
+			m, n, k,
+			a_ptr, lda,
+			a_real_max_exp_ptr,
+			b_ptr, ldb,
+			b_real_max_exp_ptr,
+			num_split,
+			bits_per_int8
+			);
+
+	// Init C
+	init_c_complex(
+			m, n,
+			c_ptr, ldc,
+			*beta,
+			handle->cuda_stream
+			);
+
+	for (const auto p : std::vector<std::pair<unsigned, unsigned>>{{1, 1}, {0, 0}, {1, 0}, {0, 1}}) {
+		init_accumulator_buffer(
+				tmp_f64_ptr,
+				m * n,
+				handle->cuda_stream
+				);
+		for (const auto& gemm_pair_config : gemm_pair_config_list) {
+			gemm_core(
+					handle,
+					op_A, op_B,
+					m, n, k,
+					a_ptr, lda, mtk::ozimma::fp64,
+					b_ptr, ldb, mtk::ozimma::fp64,
+					c_i32_ptr,
+					gemm_pair_config,
+					compute_mode,
+					a_int8_working_memory_ptr_list[p.first],
+					b_int8_working_memory_ptr_list[p.second]
+					);
+			handle->profiler.start_timer_sync("accumulate_in_f64");
+			accumulate_in_f64(
+					tmp_f64_ptr,
+					c_i32_ptr,
+					m * n,
+					bits_per_int8 * (gemm_pair_config.A_id + gemm_pair_config.B_id - 2),
+					handle->cuda_stream
+					);
+			handle->profiler.stop_timer_sync("accumulate_in_f64");
+		}
+		
+		real_t axpy_alpha_real = 0;
+		real_t axpy_alpha_imag = 0;
+		if (p.first == 0 && p.second == 0) {
+			axpy_alpha_real = alpha->x;
+			axpy_alpha_imag = alpha->y;
+		} else if (p.first == 1 && p.second == 1) {
+			axpy_alpha_real = -alpha->x;
+			axpy_alpha_imag = -alpha->y;
+		} else {
+			axpy_alpha_real = -alpha->y;
+			axpy_alpha_imag = alpha->x;
+		}
+		handle->profiler.start_timer_sync("copy_result");
+		axy_complex(
+				m, n,
+				make_cuDoubleComplex(axpy_alpha_real, axpy_alpha_imag),
+				tmp_f64_ptr,
+				c_ptr, ldc,
+				a_max_exp_ptr_list[p.first],
+				b_max_exp_ptr_list[p.second],
+				handle->cuda_stream
+				);
+		handle->profiler.stop_timer_sync("copy_result");
+	}
+}
 } // unnamed namespace
 
 int mtk::ozimma::gemm(
@@ -506,7 +791,8 @@ int mtk::ozimma::gemm(
 		const void* const b_ptr, const std::size_t ldb,
 		const void* beta,
 		void* const c_ptr, std::size_t ldc,
-		const mtk::ozimma::compute_mode_t compute_mode
+		const mtk::ozimma::compute_mode_t compute_mode,
+		const mtk::ozimma::element_kind_t element_kind
 		) {
 	mtk::ozimma::data_t input_type;
 	switch (compute_mode) {
@@ -528,64 +814,7 @@ int mtk::ozimma::gemm(
 		OZIMMA_NOT_IMPLEMENTED;
 	}
 
-	if (input_type == mtk::ozimma::fp32) {
-		float*  const c_fp32_ptr = reinterpret_cast<float* >(handle->working_memory_ptr);
-		double* const c_fp64_ptr = reinterpret_cast<double*>(c_fp32_ptr + m * n);
-		void*   const working_memory_ptr = c_fp64_ptr + m * n;
-
-		init_accumulator_buffer<double>(c_fp64_ptr, m * n, handle->cuda_stream);
-
-		split_AB(
-				handle,
-				working_memory_ptr,
-				op_A, op_B,
-				m, n, k,
-				reinterpret_cast<const float*>(a_ptr), lda,
-				reinterpret_cast<const float*>(b_ptr), ldb,
-				compute_mode
-				);
-		const auto& gemm_pair_config_list = mtk::ozimma::detail::get_split_config(compute_mode).gemm_pair_config_list;
-		for (const auto& gemm_pair_config : gemm_pair_config_list) {
-			gemm_core(
-					handle,
-					op_A, op_B,
-					m, n, k,
-					a_ptr, lda, input_type,
-					b_ptr, ldb, input_type,
-					c_fp32_ptr,
-					gemm_pair_config,
-					compute_mode,
-					working_memory_ptr
-					);
-			handle->profiler.start_timer_sync("accumulate_in_f64");
-			accumulate_in_f64(c_fp64_ptr, c_fp32_ptr, m * n, handle->cuda_stream);
-			handle->profiler.stop_timer_sync("accumulate_in_f64");
-		}
-
-		handle->profiler.start_timer_sync("copy_result");
-		if (mtk::ozimma::get_output_type(compute_mode) == fp32) {
-			using C_T = float;
-			axby<C_T>(
-					m, n,
-					*reinterpret_cast<const C_T*>(alpha),
-					c_fp64_ptr,
-					*reinterpret_cast<const C_T*>(beta),
-					reinterpret_cast<C_T*>(c_ptr), ldc,
-					handle->cuda_stream
-					);
-		} else {
-			using C_T = double;
-			axby<C_T>(
-					m, n,
-					*reinterpret_cast<const C_T*>(alpha),
-					c_fp64_ptr,
-					*reinterpret_cast<const C_T*>(beta),
-					reinterpret_cast<C_T*>(c_ptr), ldc,
-					handle->cuda_stream
-					);
-		}
-		handle->profiler.stop_timer_sync("copy_result");
-	} else if (input_type == mtk::ozimma::fp64) {
+	if (input_type == mtk::ozimma::fp64) {
 		if (
 				compute_mode == mtk::ozimma::fp64_int8_6  ||
 				compute_mode == mtk::ozimma::fp64_int8_7  ||
@@ -596,71 +825,13 @@ int mtk::ozimma::gemm(
 				compute_mode == mtk::ozimma::fp64_int8_12 ||
 				compute_mode == mtk::ozimma::fp64_int8_13
 				) {
-			const unsigned num_split = mtk::ozimma::detail::get_split_config(compute_mode).matrix_A_split_types.size() - 1;
-			const auto bits_per_int8 = std::min<unsigned>(7u, std::ceil((31 - std::log2(k) / 2.)));
-
-			std::int32_t* const c_i32_ptr = reinterpret_cast<std::int32_t*>(handle->working_memory_ptr);
-			double* const c_f64_ptr = reinterpret_cast<double*>(c_i32_ptr + m * n);
-			double* const a_max_exp_ptr = reinterpret_cast<double*>(c_f64_ptr + m * n);
-			double* const b_max_exp_ptr = a_max_exp_ptr + m;
-			void* const working_memory_ptr = b_max_exp_ptr + n;
-
-			init_accumulator_buffer(
-					c_f64_ptr,
-					m * n,
-					handle->cuda_stream
-					);
-
-			split_AB_int8<double>(
-					handle,
-					working_memory_ptr,
-					op_A,
-					op_B,
-					m, n, k,
-					reinterpret_cast<const double*>(a_ptr), lda,
-					a_max_exp_ptr,
-					reinterpret_cast<const double*>(b_ptr), ldb,
-					b_max_exp_ptr,
-					num_split,
-					bits_per_int8
-					);
-
-			const auto& gemm_pair_config_list = mtk::ozimma::detail::get_split_config(compute_mode).gemm_pair_config_list;
-			for (const auto& gemm_pair_config : gemm_pair_config_list) {
-				gemm_core(
-						handle,
-						op_A, op_B,
-						m, n, k,
-						a_ptr, lda, input_type,
-						b_ptr, ldb, input_type,
-						c_i32_ptr,
-						gemm_pair_config,
-						compute_mode,
-						working_memory_ptr
-						);
-				handle->profiler.start_timer_sync("accumulate_in_f64");
-				accumulate_in_f64(
-						c_f64_ptr,
-						c_i32_ptr,
-						m * n,
-						bits_per_int8 * (gemm_pair_config.A_id + gemm_pair_config.B_id - 2),
-						handle->cuda_stream
-						);
-				handle->profiler.stop_timer_sync("accumulate_in_f64");
+			if (element_kind == mtk::ozimma::real) {
+				using T = double;
+				gemm_int8(handle, op_A, op_B, m, n, k, reinterpret_cast<const T*>(alpha), reinterpret_cast<const T*>(a_ptr), lda, reinterpret_cast<const T*>(b_ptr), ldb, reinterpret_cast<const T*>(beta), reinterpret_cast<T*>(c_ptr), ldc, compute_mode);
+			} else {
+				using T = cuDoubleComplex;
+				gemm_int8(handle, op_A, op_B, m, n, k, reinterpret_cast<const T*>(alpha), reinterpret_cast<const T*>(a_ptr), lda, reinterpret_cast<const T*>(b_ptr), ldb, reinterpret_cast<const T*>(beta), reinterpret_cast<T*>(c_ptr), ldc, compute_mode);
 			}
-			using C_T = double;
-			handle->profiler.start_timer_sync("copy_result");
-			axby(
-					m, n,
-					*reinterpret_cast<const C_T*>(alpha),
-					c_f64_ptr,
-					*reinterpret_cast<const C_T*>(beta),
-					reinterpret_cast<C_T*>(c_ptr), ldc,
-					a_max_exp_ptr,
-					b_max_exp_ptr,
-					handle->cuda_stream
-					);
-			handle->profiler.stop_timer_sync("copy_result");
 		} else if (compute_mode == mtk::ozimma::dgemm) {
 				const auto& gemm_pair_config_list = mtk::ozimma::detail::get_split_config(compute_mode).gemm_pair_config_list;
 				gemm_core(
@@ -672,6 +843,7 @@ int mtk::ozimma::gemm(
 						c_ptr,
 						gemm_pair_config_list[0],
 						compute_mode,
+						nullptr,
 						nullptr
 						);
 		} else {

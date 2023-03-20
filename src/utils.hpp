@@ -2,6 +2,7 @@
 #include <unistd.h>
 #include <dlfcn.h>
 #include <stdexcept>
+#include <cuComplex.h>
 
 namespace mtk {
 namespace ozimma {
@@ -13,6 +14,11 @@ inline void print_not_implemented(
 		) {
 	throw std::runtime_error("Not implemented (" + func + " in " + file + ", l." + std::to_string(line) + ")");
 }
+
+template <class T>
+struct real_type {using type = T;};
+template <>
+struct real_type<cuDoubleComplex> {using type = double;};
 } // namespace detail
 } // namespace ozimma
 } // namespace mtk
