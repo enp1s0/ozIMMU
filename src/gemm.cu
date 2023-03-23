@@ -451,7 +451,7 @@ void gemm_core(
 
 			const auto cublas_algorithm = CUBLAS_GEMM_DEFAULT;
 
-			auto cublas_compute_mode = CUBLAS_COMPUTE_64F;
+			const auto cublas_compute_mode = CUBLAS_COMPUTE_64F;
 
 			CUTF_CHECK_ERROR(cublasGemmEx_org(
 						handle->cublas_handle,
@@ -809,18 +809,19 @@ int mtk::ozimma::gemm(
 				gemm_int8(handle, op_A, op_B, m, n, k, reinterpret_cast<const T*>(alpha), reinterpret_cast<const T*>(a_ptr), lda, reinterpret_cast<const T*>(b_ptr), ldb, reinterpret_cast<const T*>(beta), reinterpret_cast<T*>(c_ptr), ldc, compute_mode);
 			}
 		} else if (compute_mode == mtk::ozimma::dgemm) {
-				const auto& gemm_pair_config_list = mtk::ozimma::detail::get_split_config(compute_mode).gemm_pair_config_list;
-				gemm_core(
-						handle,
-						op_A, op_B,
+			const auto dtype = element_kind == mtk::ozimma::real ? CUDA_R_64F : CUDA_C_64F;
+				cublasGemmEx_org(
+						handle->cublas_handle,
+						to_cublasOperation_t(op_A),
+						to_cublasOperation_t(op_B),
 						m, n, k,
-						a_ptr, lda, input_type,
-						b_ptr, ldb, input_type,
-						c_ptr,
-						gemm_pair_config_list[0],
-						compute_mode,
-						nullptr,
-						nullptr
+						alpha,
+						a_ptr, dtype, lda,
+						b_ptr, dtype, ldb,
+						beta,
+						c_ptr, dtype, ldc,
+						CUBLAS_COMPUTE_64F,
+						CUBLAS_GEMM_DEFAULT
 						);
 		} else {
 			OZIMMA_NOT_IMPLEMENTED;
