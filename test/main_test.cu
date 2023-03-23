@@ -168,10 +168,11 @@ void gemm_eval_core(
 
 	const auto elapsed_time = std::chrono::duration_cast<std::chrono::nanoseconds>(end_clock - start_clock).count() * 1e-9 / test_count;
 
-	const auto throughput = 2 * m * n * k / elapsed_time;
+	const auto throughput = 2 * m * n * k / elapsed_time * (element_kind == mtk::ozimma::real ? 1 : 4);
 
-	std::printf("%s,%s,%s,%lu,%lu,%lu,%e,%e,%e\n",
+	std::printf("%s,%s,%s,%s,%lu,%lu,%lu,%e,%e,%e\n",
 			get_gpu_name_str().c_str(),
+			(element_kind == mtk::ozimma::real ? "D" : "Z"),
 			input_mode.c_str(),
 			mtk::ozimma::get_compute_mode_name_str(mode).c_str(),
 			m, n, k,
@@ -668,7 +669,7 @@ void print_usage(
 	std::printf(
 			"Usage:\n"
 			"%s matfile [/path/to/A.matrix] [/path/to/B.matrix] [Computing mode list]\n"
-			"%s [urand01 | normal01 | exp_rand-X] [seq|exp2] [start_N] [end_N] [interval_N] [Computing mode list]\n"
+			"%s [zgemm | dgemm] [urand01 | normal01 | exp_rand-X] [seq|exp2] [start_N] [end_N] [interval_N] [Computing mode list]\n"
 			"%s power [seq|exp2] [start_N] [end_N] [interval_N] [Computing mode list]\n"
 			"Compute modes:\n"
 			" %s\n",
@@ -728,25 +729,32 @@ int main(int argc, char** argv) {
 				matfile_A_path.c_str(),
 				matfile_B_path.c_str()
 				);
-		std::printf("gpu,input,mode,m,n,k,residual,max_relative\n");
+		std::printf("gpu,gemm,input,mode,m,n,k,residual,max_relative\n");
 		std::fflush(stdout);
 		if (fp64in_gemm_list.size() != 0) {
 			gemm_eval_matfile<double>(fp64in_gemm_list, matfile_A_path, matfile_B_path);
 		}
 	} else if (input_mode == "urand01" || input_mode == "normal01" || (input_mode.length() >= 9 && input_mode.substr(0, 9) == "exp_rand-")) {
-		if (argc <= 6) {
+		if (argc <= 7) {
 			print_usage(argv[0]);
 			return 1;
 		}
-		const auto N_mode = std::string(argv[2]);
+
+		const auto gemm = std::string(argv[2]);
+		if (gemm != "dgemm" && gemm != "zgemm") {
+			std::fprintf(stderr, "Error: unknown gemm \"%s\"\n", gemm.c_str());
+			return 1;
+		}
+
+		const auto N_mode = std::string(argv[3]);
 		if (N_mode != "seq" && N_mode != "exp2") {
 			std::fprintf(stderr, "Error: unknown N mode \"%s\"\n", N_mode.c_str());
 			return 1;
 		}
-		const auto min_N = std::stoul(argv[3]);
-		const auto max_N = std::stoul(argv[4]);
-		const auto interval_N = std::stoul(argv[5]);
-		const auto compute_mode_list = get_compute_mode_list_from_argv(argc - 6, argv + 6);
+		const auto min_N = std::stoul(argv[4]);
+		const auto max_N = std::stoul(argv[5]);
+		const auto interval_N = std::stoul(argv[6]);
+		const auto compute_mode_list = get_compute_mode_list_from_argv(argc - 7, argv + 7);
 
 		mtk::ozimma::gemm_list_t fp32in_gemm_list;
 		mtk::ozimma::gemm_list_t fp64in_gemm_list;
@@ -760,13 +768,13 @@ int main(int argc, char** argv) {
 							real_N,
 							real_N,
 							real_N,
-							mtk::ozimma::complx,
+							gemm == "dgemm" ? mtk::ozimma::real : mtk::ozimma::complx,
 							compute_mode
 							));
 			}
 		}
 
-		std::printf("gpu,input,mode,m,n,k,residual,max_relative,throughput_in_tflops\n");
+		std::printf("gpu,gemm,input,mode,m,n,k,residual,max_relative,throughput_in_tflops\n");
 		std::fflush(stdout);
 		if (fp64in_gemm_list.size() != 0) {
 			gemm_eval<double>(fp64in_gemm_list, input_mode);
