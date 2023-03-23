@@ -1,6 +1,7 @@
 #include <algorithm>
 #include <iostream>
 #include <chrono>
+#include <cuComplex.h>
 #include <ozimma/ozimma.hpp>
 #include <cutf/memory.hpp>
 #include <cutf/curand.hpp>
@@ -101,7 +102,7 @@ void gen_exp_rand(
 			);
 }
 
-template <class C_T, class AB_T, class MATMUL_FUNC>
+template <class AB_T, class C_T, class MATMUL_FUNC>
 void gemm_eval_core(
 		const mtk::ozimma::operation_t op_a,
 		const mtk::ozimma::operation_t op_b,
@@ -113,6 +114,7 @@ void gemm_eval_core(
 		C_T* const c_ptr, const std::size_t ldc,
 		const MATMUL_FUNC matmul_func,
 		const mtk::ozimma::compute_mode_t mode,
+		const mtk::ozimma::element_kind_t element_kind,
 		const std::string input_mode
 		) {
 	matmul_func(
@@ -124,16 +126,16 @@ void gemm_eval_core(
 			);
 
 	mtk::mateval::error_map_t error;
-	if (mtk::ozimma::get_output_type(mode) == mtk::ozimma::fp32) {
+	if (element_kind == mtk::ozimma::real) {
 		error = mtk::mateval::cuda::get_error_AxB(
 				mtk::mateval::relative_residual | mtk::mateval::max_relative_error,
 				m, n, k,
 				conv_layout_oz2mateval(op_a),
 				conv_layout_oz2mateval(op_b),
 				mtk::mateval::col_major,
-				a_ptr, lda,
-				b_ptr, ldb,
-				reinterpret_cast<float*>(c_ptr), ldc
+				reinterpret_cast<const double*>(a_ptr), lda,
+				reinterpret_cast<const double*>(b_ptr), ldb,
+				reinterpret_cast<const double*>(c_ptr), ldc
 				);
 	} else {
 		error = mtk::mateval::cuda::get_error_AxB(
@@ -142,9 +144,9 @@ void gemm_eval_core(
 				conv_layout_oz2mateval(op_a),
 				conv_layout_oz2mateval(op_b),
 				mtk::mateval::col_major,
-				a_ptr, lda,
-				b_ptr, ldb,
-				reinterpret_cast<double*>(c_ptr), ldc
+				reinterpret_cast<const cuDoubleComplex*>(a_ptr), lda,
+				reinterpret_cast<const cuDoubleComplex*>(b_ptr), ldb,
+				reinterpret_cast<const cuDoubleComplex*>(c_ptr), ldc
 				);
 	}
 
@@ -195,10 +197,11 @@ void gemm_eval(
 		const auto m = std::get<0>(gemm);
 		const auto n = std::get<1>(gemm);
 		const auto k = std::get<2>(gemm);
-		max_AB_count = std::max(max_AB_count, m * k + k * n);
+		const auto element_kind = std::get<3>(gemm);
+		max_AB_count = std::max(max_AB_count, (m * k + k * n) * (element_kind == mtk::ozimma::real ? 1 : 2));
 		max_C_size  = std::max(max_C_size , m * n *
 				mtk::ozimma::get_data_size_in_byte(
-				mtk::ozimma::get_output_type(std::get<4>(gemm))));
+				mtk::ozimma::get_output_type(std::get<4>(gemm))) * (element_kind == mtk::ozimma::real ? 1 : 2));
 	}
 
 	auto mat_AB_uptr = cutf::memory::get_device_unique_ptr<T>(max_AB_count);
@@ -244,39 +247,40 @@ void gemm_eval(
 						const T* const b_ptr, const std::size_t ldb,
 						void* const c_ptr, const std::size_t ldc
 									) {
-					if (mtk::ozimma::get_output_type(mode) == mtk::ozimma::fp32) {
-						using C_T = float;
-						const C_T alpha = 1, beta = 0;
-						mtk::ozimma::gemm(
-								ozimma_handle,
-								op_a, op_b,
-								m, n, k,
-								&alpha,
-								a_ptr, lda,
-								b_ptr, ldb,
-								&beta,
-								c_ptr, ldc,
-								mode,
-								element_kind
-								);
-					} else {
-						using C_T = double;
-						const C_T alpha = 1, beta = 0;
-						mtk::ozimma::gemm(
-								ozimma_handle,
-								op_a, op_b,
-								m, n, k,
-								&alpha,
-								a_ptr, lda,
-								b_ptr, ldb,
-								&beta,
-								c_ptr, ldc,
-								mode,
-								element_kind
-								);
-					}
+				if (element_kind == mtk::ozimma::real) {
+					using C_T = double;
+					const C_T alpha = 1, beta = 0;
+					mtk::ozimma::gemm(
+							ozimma_handle,
+							op_a, op_b,
+							m, n, k,
+							&alpha,
+							a_ptr, lda,
+							b_ptr, ldb,
+							&beta,
+							c_ptr, ldc,
+							mode,
+							element_kind
+							);
+				} else {
+					using C_T = cuDoubleComplex;
+					const C_T alpha = make_cuDoubleComplex(1, 0), beta = make_cuDoubleComplex(0, 0);
+					mtk::ozimma::gemm(
+							ozimma_handle,
+							op_a, op_b,
+							m, n, k,
+							&alpha,
+							a_ptr, lda,
+							b_ptr, ldb,
+							&beta,
+							c_ptr, ldc,
+							mode,
+							element_kind
+							);
+				}
 				},
 				mode,
+				element_kind,
 				input_mode
 				);
 	}
@@ -447,8 +451,8 @@ void gemm_eval_matfile(
 						const T* const b_ptr, const std::size_t ldb,
 						void* const c_ptr, const std::size_t ldc
 									) {
-					if (mtk::ozimma::get_output_type(mode) == mtk::ozimma::fp32) {
-						using C_T = float;
+					if (element_kind == mtk::ozimma::real) {
+						using C_T = double;
 						const C_T alpha = 1, beta = 0;
 						mtk::ozimma::gemm(
 								ozimma_handle,
@@ -463,8 +467,8 @@ void gemm_eval_matfile(
 								element_kind
 								);
 					} else {
-						using C_T = double;
-						const C_T alpha = 1, beta = 0;
+						using C_T = cuDoubleComplex;
+						const C_T alpha = make_cuDoubleComplex(1, 0), beta = make_cuDoubleComplex(0, 0);
 						mtk::ozimma::gemm(
 								ozimma_handle,
 								op_a, op_b,
@@ -480,6 +484,7 @@ void gemm_eval_matfile(
 					}
 				},
 				mode,
+				element_kind,
 				"matfile"
 				);
 	}
@@ -704,27 +709,16 @@ int main(int argc, char** argv) {
 			return 1;
 		}
 
-		mtk::ozimma::gemm_list_t fp32in_gemm_list;
 		mtk::ozimma::gemm_list_t fp64in_gemm_list;
 
 		for (auto compute_mode : compute_mode_list) {
-			if (mtk::ozimma::get_output_type(compute_mode) == mtk::ozimma::fp32) {
-				fp32in_gemm_list.push_back(std::tuple<std::size_t, std::size_t, std::size_t, mtk::ozimma::element_kind_t, mtk::ozimma::compute_mode_t>(
-							am,
-							bn,
-							an,
-							mtk::ozimma::real,
-							compute_mode
-							));
-			} else {
-				fp64in_gemm_list.push_back(std::tuple<std::size_t, std::size_t, std::size_t, mtk::ozimma::element_kind_t, mtk::ozimma::compute_mode_t>(
-							am,
-							bn,
-							an,
-							mtk::ozimma::real,
-							compute_mode
-							));
-			}
+			fp64in_gemm_list.push_back(std::tuple<std::size_t, std::size_t, std::size_t, mtk::ozimma::element_kind_t, mtk::ozimma::compute_mode_t>(
+						am,
+						bn,
+						an,
+						mtk::ozimma::real,
+						compute_mode
+						));
 		}
 
 		std::printf(
@@ -736,9 +730,6 @@ int main(int argc, char** argv) {
 				);
 		std::printf("gpu,input,mode,m,n,k,residual,max_relative\n");
 		std::fflush(stdout);
-		if (fp32in_gemm_list.size() != 0) {
-			gemm_eval_matfile<float>(fp32in_gemm_list, matfile_A_path, matfile_B_path);
-		}
 		if (fp64in_gemm_list.size() != 0) {
 			gemm_eval_matfile<double>(fp64in_gemm_list, matfile_A_path, matfile_B_path);
 		}
@@ -765,31 +756,18 @@ int main(int argc, char** argv) {
 			if (N_mode == "exp2") {real_N = 1lu << N;}
 
 			for (auto compute_mode : compute_mode_list) {
-				if (mtk::ozimma::get_output_type(compute_mode) == mtk::ozimma::fp32) {
-					fp32in_gemm_list.push_back(std::tuple<std::size_t, std::size_t, std::size_t, mtk::ozimma::element_kind_t, mtk::ozimma::compute_mode_t>(
-								real_N,
-								real_N,
-								real_N,
-								mtk::ozimma::real,
-								compute_mode
-								));
-				} else {
-					fp64in_gemm_list.push_back(std::tuple<std::size_t, std::size_t, std::size_t, mtk::ozimma::element_kind_t, mtk::ozimma::compute_mode_t>(
-								real_N,
-								real_N,
-								real_N,
-								mtk::ozimma::real,
-								compute_mode
-								));
-				}
+				fp64in_gemm_list.push_back(std::tuple<std::size_t, std::size_t, std::size_t, mtk::ozimma::element_kind_t, mtk::ozimma::compute_mode_t>(
+							real_N,
+							real_N,
+							real_N,
+							mtk::ozimma::complx,
+							compute_mode
+							));
 			}
 		}
 
 		std::printf("gpu,input,mode,m,n,k,residual,max_relative,throughput_in_tflops\n");
 		std::fflush(stdout);
-		if (fp32in_gemm_list.size() != 0) {
-			gemm_eval<float>(fp32in_gemm_list, input_mode);
-		}
 		if (fp64in_gemm_list.size() != 0) {
 			gemm_eval<double>(fp64in_gemm_list, input_mode);
 		}
@@ -816,31 +794,18 @@ int main(int argc, char** argv) {
 			if (N_mode == "exp2") {real_N = 1lu << N;}
 
 			for (auto compute_mode : compute_mode_list) {
-				if (mtk::ozimma::get_output_type(compute_mode) == mtk::ozimma::fp32) {
-					fp32in_gemm_list.push_back(std::tuple<std::size_t, std::size_t, std::size_t, mtk::ozimma::element_kind_t, mtk::ozimma::compute_mode_t>(
-								real_N,
-								real_N,
-								real_N,
-								mtk::ozimma::real,
-								compute_mode
-								));
-				} else {
-					fp64in_gemm_list.push_back(std::tuple<std::size_t, std::size_t, std::size_t, mtk::ozimma::element_kind_t, mtk::ozimma::compute_mode_t>(
-								real_N,
-								real_N,
-								real_N,
-								mtk::ozimma::real,
-								compute_mode
-								));
-				}
+				fp64in_gemm_list.push_back(std::tuple<std::size_t, std::size_t, std::size_t, mtk::ozimma::element_kind_t, mtk::ozimma::compute_mode_t>(
+							real_N,
+							real_N,
+							real_N,
+							mtk::ozimma::real,
+							compute_mode
+							));
 			}
 		}
 
 		std::printf("gpu,mode,m,n,k,throughput_in_tflops,avg_watt,gflops_per_watt,time,count\n");
 		std::fflush(stdout);
-		if (fp32in_gemm_list.size() != 0) {
-			gemm_eval_power<float>(fp32in_gemm_list);
-		}
 		if (fp64in_gemm_list.size() != 0) {
 			gemm_eval_power<double>(fp64in_gemm_list);
 		}
