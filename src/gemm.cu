@@ -153,34 +153,6 @@ cublasOperation_t to_cublasOperation_t(
 }
 
 __global__ void accumulate_in_f64_kernel(
-		double* const dp_ptr,
-		const float* sp_ptr,
-		const std::size_t length
-		) {
-	const auto tid = blockIdx.x * blockDim.x + threadIdx.x;
-	if (tid >= length) {
-		return;
-	}
-
-	dp_ptr[tid] += sp_ptr[tid];
-}
-
-void accumulate_in_f64(
-		double* const dp_ptr,
-		const float* sp_ptr,
-		const std::size_t length,
-		cudaStream_t cuda_stream
-		) {
-	constexpr std::size_t block_size = 256;
-	accumulate_in_f64_kernel
-		<<<(length + block_size - 1) / block_size, block_size, 0, cuda_stream>>>(
-				dp_ptr,
-				sp_ptr,
-				length
-			);
-}
-
-__global__ void accumulate_in_f64_kernel(
 		double* const f64_ptr,
 		const std::int32_t* i32_ptr,
 		const std::size_t length,
@@ -652,6 +624,8 @@ int gemm_int8<double>(
 			handle->cuda_stream
 			);
 	handle->profiler.stop_timer_sync("copy_result");
+
+	return 0;
 }
 
 template <>
@@ -776,6 +750,8 @@ int gemm_int8<cuDoubleComplex>(
 				);
 		handle->profiler.stop_timer_sync("copy_result");
 	}
+
+	return 0;
 }
 } // unnamed namespace
 
