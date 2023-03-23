@@ -2,13 +2,14 @@
 #include <cmath>
 #include <cutf/experimental/fp.hpp>
 #include "config.hpp"
+#include "utils.hpp"
 
 namespace mtk {
 namespace ozimma {
 template <class T>
 void split_int8(
 		std::int8_t* const out_ptr,
-		T* const max_exp_ptr,
+		typename mtk::ozimma::detail::real_type<T>::type* const max_exp_ptr,
 		const std::size_t m,
 		const std::size_t n,
 		const T* const in_ptr,

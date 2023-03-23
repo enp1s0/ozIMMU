@@ -79,3 +79,28 @@ std::string mtk::ozimma::detail::gemm_mode_str(
 	}
 	return "Unknown";
 }
+
+// working memory size calculation
+std::size_t mtk::ozimma::detail::calculate_working_memory_size(
+		const std::size_t m,
+		const std::size_t n,
+		const mtk::ozimma::compute_mode_t compute_mode,
+		const mtk::ozimma::detail::matrix_t matrix,
+		const mtk::ozimma::element_kind_t element_kind
+		) {
+	const auto split_config = mtk::ozimma::detail::get_split_config(compute_mode);
+
+	decltype(split_config.matrix_A_split_types) split_data_types;
+	if (matrix == mtk::ozimma::detail::matrix_A) {
+		split_data_types = split_config.matrix_A_split_types;
+	} else {
+		split_data_types = split_config.matrix_B_split_types;
+	}
+
+	std::size_t sum_data_type_size = 0;
+	for (const auto d : split_data_types) {
+		sum_data_type_size += mtk::ozimma::get_data_size_in_byte(d);
+	}
+
+	return sum_data_type_size * m * n * (element_kind == mtk::ozimma::real ? 1 : 2);
+}

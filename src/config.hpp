@@ -45,6 +45,14 @@ split_config_t get_split_config(
 
 std::string gemm_mode_str(const gemm_t gemm_mode);
 
+std::size_t calculate_working_memory_size(
+		const std::size_t m,
+		const std::size_t n,
+		const mtk::ozimma::compute_mode_t compute_mode,
+		const mtk::ozimma::detail::matrix_t matrix,
+		const mtk::ozimma::element_kind_t element_kind
+		);
+
 } // namespace detail
 } // namespace ozimma
 } // namespace mtk
