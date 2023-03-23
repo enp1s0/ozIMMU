@@ -669,7 +669,7 @@ void print_usage(
 	std::printf(
 			"Usage:\n"
 			"%s matfile [/path/to/A.matrix] [/path/to/B.matrix] [Computing mode list]\n"
-			"%s [zgemm | dgemm] [urand01 | normal01 | exp_rand-X] [seq|exp2] [start_N] [end_N] [interval_N] [Computing mode list]\n"
+			"%s [urand01 | normal01 | exp_rand-X] [zgemm | dgemm] [seq|exp2] [start_N] [end_N] [interval_N] [Computing mode list]\n"
 			"%s power [seq|exp2] [start_N] [end_N] [interval_N] [Computing mode list]\n"
 			"Compute modes:\n"
 			" %s\n",
