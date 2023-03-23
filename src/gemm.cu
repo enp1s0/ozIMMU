@@ -30,53 +30,8 @@ std::size_t split_core(
 }
 
 template <class T>
-void split_AB(
-		mtk::ozimma::handle_t handle,
-		void* working_memory_ptr,
-		const mtk::ozimma::operation_t op_A,
-		const mtk::ozimma::operation_t op_B,
-		const std::size_t m,
-		const std::size_t n,
-		const std::size_t k,
-		const T* const a_ptr, const std::size_t lda,
-		const T* const b_ptr, const std::size_t ldb,
-		const mtk::ozimma::compute_mode_t compute_mode
-		) {
-	const auto two_to_alpha = mtk::ozimma::get_two_to_alpha<T>(k);
-
-	const auto split_config = mtk::ozimma::detail::get_split_config(compute_mode);
-
-	handle->profiler.start_timer_sync("split_A");
-	const auto b_offset = split_core(
-			working_memory_ptr,
-			op_A,
-			m, k,
-			a_ptr, lda,
-			split_config.matrix_A_split_types,
-			mtk::ozimma::detail::matrix_A,
-			&two_to_alpha,
-			handle->cuda_stream
-			);
-	handle->profiler.stop_timer_sync("split_A");
-
-	handle->profiler.start_timer_sync("split_B");
-	split_core(
-			reinterpret_cast<std::uint8_t*>(working_memory_ptr) + b_offset,
-			op_B,
-			k, n,
-			b_ptr, ldb,
-			split_config.matrix_B_split_types,
-			mtk::ozimma::detail::matrix_B,
-			&two_to_alpha,
-			handle->cuda_stream
-			);
-	handle->profiler.stop_timer_sync("split_B");
-}
-
-template <class T>
 void split_AB_int8(
 		mtk::ozimma::handle_t handle,
-		void* working_memory_ptr,
 		const mtk::ozimma::operation_t op_A,
 		const mtk::ozimma::operation_t op_B,
 		const std::size_t m,
@@ -84,13 +39,13 @@ void split_AB_int8(
 		const std::size_t k,
 		const T* const a_ptr, const std::size_t lda,
 		double* const a_max_exp_ptr,
+		std::int8_t* const working_a_ptr,
 		const T* const b_ptr, const std::size_t ldb,
 		double* const b_max_exp_ptr,
+		std::int8_t* const working_b_ptr,
 		const unsigned num_split,
 		const unsigned bits_per_int8
 		) {
-	const auto working_a_ptr = reinterpret_cast<std::int8_t*>(working_memory_ptr);
-
 	handle->profiler.start_timer_sync("split_A");
 	mtk::ozimma::split_int8<T>(
 			working_a_ptr,
@@ -104,8 +59,6 @@ void split_AB_int8(
 			handle->cuda_stream
 			);
 	handle->profiler.stop_timer_sync("split_A");
-
-	const auto working_b_ptr = reinterpret_cast<std::int8_t*>(working_memory_ptr) + m * k * num_split;
 
 	handle->profiler.start_timer_sync("split_B");
 	mtk::ozimma::split_int8<T>(
@@ -575,13 +528,14 @@ int gemm_int8<double>(
 
 	split_AB_int8<double>(
 			handle,
-			working_memory_ptr,
 			op_A,
 			op_B,
 			m, n, k, a_ptr, lda,
 			a_max_exp_ptr,
+			reinterpret_cast<std::int8_t*>(working_memory_ptr),
 			b_ptr, ldb,
 			b_max_exp_ptr,
+			reinterpret_cast<std::int8_t*>(working_memory_ptr) + m * k * num_split,
 			num_split,
 			bits_per_int8
 			);
@@ -676,14 +630,15 @@ int gemm_int8<cuDoubleComplex>(
 
 	split_AB_int8<cuDoubleComplex>(
 			handle,
-			working_memory_ptr,
 			op_A,
 			op_B,
 			m, n, k,
 			a_ptr, lda,
 			a_real_max_exp_ptr,
+			reinterpret_cast<std::int8_t*>(working_memory_ptr),
 			b_ptr, ldb,
 			b_real_max_exp_ptr,
+			reinterpret_cast<std::int8_t*>(working_memory_ptr) + m * k * num_split * 2,
 			num_split,
 			bits_per_int8
 			);
