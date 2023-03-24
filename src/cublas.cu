@@ -148,9 +148,10 @@ CUBLASAPI cublasStatus_t CUBLASWINAPI cublasDgemm_v2 (cublasHandle_t handle,
 #ifdef __CUDA_ARCH__
 	return CUBLAS_STATUS_NOT_SUPPORTED;
 #else
+	get_global_ozimma_handle()->cublas_handle = handle;
 	const auto compute_mode = get_compute_mode(m, n, k);
 
-	if (compute_mode != mtk::ozimma::dgemm) {
+	if (compute_mode != mtk::ozimma::dgemm && m >= 1024 && n >= 1024 && k >= 1024) {
 		const auto gemm_config = mtk::ozimma::gemm_list_t {
 			std::tuple<std::size_t, std::size_t, std::size_t, mtk::ozimma::element_kind_t, mtk::ozimma::compute_mode_t>{m, n, k, mtk::ozimma::real, compute_mode}
 		};
@@ -253,7 +254,7 @@ CUBLASAPI cublasStatus_t CUBLASWINAPI cublasZgemm_v2 (cublasHandle_t handle,
 #else
 	const auto compute_mode = get_compute_mode(m, n, k);
 
-	if (compute_mode != mtk::ozimma::dgemm) {
+	if (compute_mode != mtk::ozimma::dgemm && m >= 1024 && n >= 1024 && k >= 1024) {
 		const auto gemm_config = mtk::ozimma::gemm_list_t {
 			std::tuple<std::size_t, std::size_t, std::size_t, mtk::ozimma::element_kind_t, mtk::ozimma::compute_mode_t>{m, n, k, mtk::ozimma::complx, compute_mode}
 		};
