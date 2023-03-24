@@ -459,7 +459,7 @@ void gemm_core(
 			const auto op_A_r = gemm_pair_config.A_id == 0 ? to_cublasOperation_t(op_A) : CUBLAS_OP_T;
 			const auto op_B_r = gemm_pair_config.B_id == 0 ? to_cublasOperation_t(op_B) : CUBLAS_OP_N;
 
-			CUTF_CHECK_ERROR(cublasGemmEx_org(
+			CUTF_CHECK_ERROR_M(cublasGemmEx_org(
 						handle->cublas_handle,
 						op_A_r,
 						op_B_r,
@@ -471,7 +471,7 @@ void gemm_core(
 						c_ptr_r, CUDA_R_32I, m,
 						CUBLAS_COMPUTE_32I,
 						CUBLAS_GEMM_DEFAULT_TENSOR_OP
-						));
+						), ("GemmEx(int8)-m" + std::to_string(m) + "-n" + std::to_string(n) + "-k" + std::to_string(k)));
 		}
 		break;
 	default:
