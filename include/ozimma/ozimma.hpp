@@ -78,6 +78,19 @@ int gemm(
 		const mtk::ozimma::element_kind_t element_kind
 		);
 
+compute_mode_t auto_mode_select(
+		mtk::ozimma::handle_t handle,
+		const mtk::ozimma::operation_t op_A,
+		const mtk::ozimma::operation_t op_B,
+		const std::size_t m,
+		const std::size_t n,
+		const std::size_t k,
+		const void* const a_ptr, const std::size_t lda,
+		const void* const b_ptr, const std::size_t ldb,
+		const mtk::ozimma::element_kind_t element_kind,
+		const double mantissa_loss_threshold
+		);
+
 std::string get_compute_mode_name_str(
 		const mtk::ozimma::compute_mode_t mode
 		);
