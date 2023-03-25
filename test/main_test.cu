@@ -632,6 +632,7 @@ std::vector<mtk::ozimma::compute_mode_t> get_supported_compute_mode() {
 		mtk::ozimma::fp64_int8_11,
 		mtk::ozimma::fp64_int8_12,
 		mtk::ozimma::fp64_int8_13,
+		mtk::ozimma::fp64_int8_auto,
 	};
 }
 
