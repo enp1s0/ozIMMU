@@ -333,3 +333,230 @@ void mtk::ozimma::split_int8<cuDoubleComplex>(
 		const unsigned bits_per_int8,
 		const cudaStream_t cuda_stream
 		);
+
+// mantissa loss calculation
+namespace {
+__global__ void init_mantissa_loss_conter_kernel(
+		unsigned long long int* const counter_ptr,
+		const std::uint64_t counter_length
+		) {
+	if (threadIdx.x < counter_length) {
+		counter_ptr[threadIdx.x] = 0;
+	}
+}
+
+void init_mantissa_loss_counter(
+		unsigned long long int* const counter_ptr,
+		const std::uint64_t counter_length,
+		cudaStream_t cuda_stream
+		) {
+	init_mantissa_loss_conter_kernel<<<1, counter_length, 0, cuda_stream>>>(counter_ptr, counter_length);
+}
+
+template <class INPUT_T>
+__device__ void calculate_mantissa_loss_core(
+		unsigned long long* mantissa_loss_length_buffer,
+		const INPUT_T in,
+		const INPUT_T max_exp,
+		const unsigned min_num_split,
+		const unsigned max_num_split,
+		const unsigned mantissa_length
+		) {
+	if (in == 0 || max_exp == 0) {
+		return;
+	}
+	const auto required_mantissa_space_length = ((cutf::experimental::fp::mask_exponent(max_exp) - cutf::experimental::fp::mask_exponent(in)) >> 52) + 53;
+	for (unsigned num_split = min_num_split; num_split <= max_num_split; num_split++) {
+		unsigned mantissa_loss_length = 0;
+		const auto mantissa_space_length = num_split * mantissa_length;
+		if (mantissa_space_length < required_mantissa_space_length) {
+			mantissa_loss_length = required_mantissa_space_length - mantissa_space_length;
+		}
+
+		for (std::uint32_t offset = cutf::thread::warp_size_const >> 1; offset >= 1; offset >>= 1) {
+			mantissa_loss_length += __shfl_xor_sync(~0u, mantissa_loss_length, offset);
+		}
+
+		if ((threadIdx.x & 0x1f) == 0) {
+			atomicAdd(mantissa_loss_length_buffer + (num_split - min_num_split), mantissa_loss_length);
+		}
+	}
+}
+
+template <class INPUT_T>
+__global__ void calculate_mantissa_loss_kernel(
+		unsigned long long* mantissa_loss_length_buffer,
+		const std::size_t m,
+		const std::size_t n,
+		const INPUT_T* const in_ptr,
+		const std::size_t ld,
+		const unsigned min_num_split,
+		const unsigned max_num_split,
+		const unsigned mantissa_length,
+		const bool col_major
+		) {
+	__shared__ typename mtk::ozimma::detail::real_type<INPUT_T>::type smem[32];
+	const auto row_index = blockIdx.x;
+	const auto max_exp = x2(get_exp_max_element(
+			in_ptr + (col_major ? row_index : (row_index * ld)),
+			n,
+			(col_major ? ld : 1),
+			smem
+			));
+
+	for (unsigned i = threadIdx.x; i < n; i += blockDim.x) {
+		const auto a = in_ptr[(col_major ? (i * ld + row_index) : (i + row_index * ld))];
+		if constexpr (std::is_same<cuDoubleComplex, INPUT_T>::value) {
+			calculate_mantissa_loss_core<double>(mantissa_loss_length_buffer, a.x, max_exp.x, min_num_split, max_num_split, mantissa_length);
+			calculate_mantissa_loss_core<double>(mantissa_loss_length_buffer, a.y, max_exp.y, min_num_split, max_num_split, mantissa_length);
+		} else {
+			calculate_mantissa_loss_core<double>(mantissa_loss_length_buffer, a  , max_exp  , min_num_split, max_num_split, mantissa_length);
+		}
+	}
+}
+} // noname namespace
+
+template <class T>
+std::unordered_map<mtk::ozimma::compute_mode_t, std::uint64_t> mtk::ozimma::get_mantissa_loss_total(
+		mtk::ozimma::handle& handle,
+		const std::size_t m,
+		const std::size_t n,
+		const T* const in_ptr,
+		const std::size_t ld,
+		const mtk::ozimma::operation_t op,
+		const unsigned bits_per_int8,
+		const cudaStream_t cuda_stream,
+		const bool download
+		) {
+	const dim3 block_size = 256;
+	const dim3 grid_size = m;
+
+	const bool is_col_major = op == mtk::ozimma::op_n;
+
+	calculate_mantissa_loss_kernel<T><<<grid_size, block_size, 0, handle.cuda_stream>>>(
+			handle.d_mantissa_loss_counter_ptr,
+			m, n,
+			in_ptr,
+			ld,
+			6,
+			13,
+			bits_per_int8,
+			is_col_major
+			);
+
+	std::unordered_map<mtk::ozimma::compute_mode_t, std::uint64_t> result;
+	if (download) {
+		unsigned long long int host_buffer[mtk::ozimma::handle::mantissa_loss_counter_length];
+		CUTF_CHECK_ERROR(cudaMemcpy(host_buffer, handle.d_mantissa_loss_counter_ptr, sizeof(unsigned long long int) * mtk::ozimma::handle::mantissa_loss_counter_length, cudaMemcpyDefault));
+
+		result.insert(std::make_pair<mtk::ozimma::compute_mode_t, std::uint64_t>(mtk::ozimma::fp64_int8_6 , host_buffer[0]));
+		result.insert(std::make_pair<mtk::ozimma::compute_mode_t, std::uint64_t>(mtk::ozimma::fp64_int8_7 , host_buffer[1]));
+		result.insert(std::make_pair<mtk::ozimma::compute_mode_t, std::uint64_t>(mtk::ozimma::fp64_int8_8 , host_buffer[2]));
+		result.insert(std::make_pair<mtk::ozimma::compute_mode_t, std::uint64_t>(mtk::ozimma::fp64_int8_9 , host_buffer[3]));
+		result.insert(std::make_pair<mtk::ozimma::compute_mode_t, std::uint64_t>(mtk::ozimma::fp64_int8_10, host_buffer[4]));
+		result.insert(std::make_pair<mtk::ozimma::compute_mode_t, std::uint64_t>(mtk::ozimma::fp64_int8_11, host_buffer[5]));
+		result.insert(std::make_pair<mtk::ozimma::compute_mode_t, std::uint64_t>(mtk::ozimma::fp64_int8_12, host_buffer[6]));
+		result.insert(std::make_pair<mtk::ozimma::compute_mode_t, std::uint64_t>(mtk::ozimma::fp64_int8_13, host_buffer[7]));
+	}
+
+	return result;
+}
+
+void mtk::ozimma::init_mantissa_loss_counter(
+		mtk::ozimma::handle& handle
+		) {
+	::init_mantissa_loss_counter(handle.d_mantissa_loss_counter_ptr, handle.mantissa_loss_counter_length, handle.cuda_stream);
+}
+
+namespace {
+template <class T>
+mtk::ozimma::compute_mode_t auto_mode_select_core(
+		mtk::ozimma::handle_t handle,
+		const mtk::ozimma::operation_t op_A,
+		const mtk::ozimma::operation_t op_B,
+		const std::size_t m,
+		const std::size_t n,
+		const std::size_t k,
+		const T* const a_ptr, const std::size_t lda,
+		const T* const b_ptr, const std::size_t ldb,
+		const double mantissa_loss_threshold) {
+	const auto bits_per_int8 = std::min<unsigned>(7u, std::ceil((31 - std::log2(k) / 2.)));
+	mtk::ozimma::init_mantissa_loss_counter(*handle);
+
+	mtk::ozimma::get_mantissa_loss_total(
+			*handle,
+			m, k,
+			a_ptr, lda,
+			op_A,
+			bits_per_int8,
+			handle->cuda_stream,
+			false
+			);
+
+	const auto dist = mtk::ozimma::get_mantissa_loss_total(
+			*handle,
+			k, n,
+			b_ptr, ldb,
+				op_B == mtk::ozimma::op_n ? mtk::ozimma::op_t : mtk::ozimma::op_n,
+			bits_per_int8,
+			handle->cuda_stream,
+			true
+			);
+
+	const std::vector<mtk::ozimma::compute_mode_t> mode_candidate_order = {
+		mtk::ozimma::fp64_int8_6,
+		mtk::ozimma::fp64_int8_7,
+		mtk::ozimma::fp64_int8_8,
+		mtk::ozimma::fp64_int8_9,
+		mtk::ozimma::fp64_int8_10,
+		mtk::ozimma::fp64_int8_11,
+		mtk::ozimma::fp64_int8_12,
+		mtk::ozimma::fp64_int8_13,
+	};
+
+	for (const auto mode : mode_candidate_order) {
+		if (dist.count(mode) != 0) {
+			if (dist.at(mode) / static_cast<double>(m * k + k * n) <= mantissa_loss_threshold) {
+				return mode;
+			}
+		}
+	}
+
+	return mtk::ozimma::dgemm;
+}
+} // noname namespace
+
+mtk::ozimma::compute_mode_t mtk::ozimma::auto_mode_select(
+		mtk::ozimma::handle_t handle,
+		const mtk::ozimma::operation_t op_A,
+		const mtk::ozimma::operation_t op_B,
+		const std::size_t m,
+		const std::size_t n,
+		const std::size_t k,
+		const void* const a_ptr, const std::size_t lda,
+		const void* const b_ptr, const std::size_t ldb,
+		const mtk::ozimma::element_kind_t element_kind,
+		const double mantissa_loss_threshold
+		) {
+	mtk::ozimma::compute_mode_t result;
+	if (element_kind == mtk::ozimma::real) {
+		result = auto_mode_select_core(
+				handle,
+				op_A, op_B,
+				m, n, k,
+				reinterpret_cast<const double*>(a_ptr), lda,
+				reinterpret_cast<const double*>(b_ptr), ldb,
+				mantissa_loss_threshold
+				);
+	} else {
+		result = auto_mode_select_core(
+				handle,
+				op_A, op_B,
+				m, n, k,
+				reinterpret_cast<const cuDoubleComplex*>(a_ptr), lda,
+				reinterpret_cast<const cuDoubleComplex*>(b_ptr), ldb,
+				mantissa_loss_threshold
+				);
+	}
+	return result;
+}

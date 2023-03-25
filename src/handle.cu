@@ -18,6 +18,8 @@ int mtk::ozimma::create(
 	// Disable profiling by default
 	mtk::ozimma::disable_profiling(*h);
 
+	CUTF_CHECK_ERROR(cudaMalloc(&(handle->d_mantissa_loss_counter_ptr), sizeof(unsigned long long int) * handle->mantissa_loss_counter_length));
+
 	return 0;
 }
 
@@ -26,6 +28,8 @@ int mtk::ozimma::destroy(
 		) {
 	// Destroy cuBLAS handler
 	CUTF_CHECK_ERROR(cublasDestroy_org(handle->cublas_handle));
+
+	CUTF_CHECK_ERROR(cudaFree(handle->d_mantissa_loss_counter_ptr));
 
 	delete handle;
 

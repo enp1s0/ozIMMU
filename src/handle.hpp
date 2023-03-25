@@ -17,6 +17,10 @@ struct mtk::ozimma::handle {
 
 	// Malloc mode flag
 	malloc_mode_t malloc_mode;
+
+	// For auto mode
+	enum{ mantissa_loss_counter_length = 13 - 6 + 1};
+	unsigned long long int* d_mantissa_loss_counter_ptr;
 };
 
 namespace mtk {
