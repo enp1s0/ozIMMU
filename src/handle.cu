@@ -131,10 +131,12 @@ std::string mtk::ozimma::get_compute_mode_name_str(
 		return "fp64_int8_12";
 	case mtk::ozimma::fp64_int8_13:
 		return "fp64_int8_13";
+	case mtk::ozimma::fp64_int8_auto:
+		return "fp64_int8_auto";
 	default:
 		break;
 	}
-	return "Unknown";
+	OZIMMA_NOT_IMPLEMENTED;
 }
 
 mtk::ozimma::data_t mtk::ozimma::get_output_type(
@@ -152,6 +154,7 @@ mtk::ozimma::data_t mtk::ozimma::get_output_type(
 	case mtk::ozimma::fp64_int8_11:
 	case mtk::ozimma::fp64_int8_12:
 	case mtk::ozimma::fp64_int8_13:
+	case mtk::ozimma::fp64_int8_auto:
 	case mtk::ozimma::dgemm:
 		return mtk::ozimma::fp64;
 
