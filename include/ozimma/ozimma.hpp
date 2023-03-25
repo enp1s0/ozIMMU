@@ -25,6 +25,8 @@ enum compute_mode_t {
 	fp64_int8_11,
 	fp64_int8_12,
 	fp64_int8_13,
+
+	fp64_int8_auto,
 };
 
 enum data_t {
