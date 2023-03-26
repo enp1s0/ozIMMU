@@ -26,12 +26,19 @@ int mtk::ozimma::create(
 int mtk::ozimma::destroy(
 		mtk::ozimma::handle_t handle
 		) {
-	// Destroy cuBLAS handler
-	CUTF_CHECK_ERROR(cublasDestroy_org(handle->cublas_handle));
+	if (handle) {
+		// Destroy cuBLAS handler
+		CUTF_CHECK_ERROR(cublasDestroy_org(handle->cublas_handle));
 
-	CUTF_CHECK_ERROR(cudaFree(handle->d_mantissa_loss_counter_ptr));
+		CUTF_CHECK_ERROR(cudaFree(handle->working_memory_ptr));
+		handle->working_memory_ptr = nullptr;
 
-	delete handle;
+		CUTF_CHECK_ERROR(cudaFree(handle->d_mantissa_loss_counter_ptr));
+		handle->d_mantissa_loss_counter_ptr = nullptr;
+
+		delete handle;
+		handle = nullptr;
+	}
 
 	return 0;
 }
