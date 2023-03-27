@@ -144,6 +144,7 @@ std::string mtk::ozimma::get_compute_mode_name_str(
 		break;
 	}
 	OZIMMA_NOT_IMPLEMENTED;
+	return "";
 }
 
 mtk::ozimma::data_t mtk::ozimma::get_output_type(
