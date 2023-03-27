@@ -746,6 +746,11 @@ int mtk::ozimma::gemm(
 		OZIMMA_NOT_IMPLEMENTED;
 	}
 
+	gemm_list_t gemm_list = {
+		std::tuple<std::size_t, std::size_t, std::size_t, mtk::ozimma::element_kind_t, mtk::ozimma::compute_mode_t>{m, n, k, element_kind, compute_mode}
+	};
+	mtk::ozimma::reallocate_working_memory(handle, gemm_list);
+
 	if (input_type == mtk::ozimma::fp64) {
 		if (
 				compute_mode == mtk::ozimma::fp64_int8_6  ||
