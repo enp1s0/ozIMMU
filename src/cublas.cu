@@ -105,9 +105,6 @@ CUBLASAPI cublasStatus_t CUBLASWINAPI cublasCreate_v2 (cublasHandle_t *handle) {
 			get_global_ozimma_handle(),
 			get_default_gemm_list()
 			);
-	if (reallocated_size != 0) {
-		ozIMMA_log("Reallocated moery : " + std::to_string(reallocated_size) + " B");
-	}
 
 	// Run the original function
 	return mtk::ozimma::cublasCreate_org(handle);
