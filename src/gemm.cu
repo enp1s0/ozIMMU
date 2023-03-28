@@ -739,11 +739,17 @@ int mtk::ozimma::gemm(
 	case mtk::ozimma::fp64_int8_11:
 	case mtk::ozimma::fp64_int8_12:
 	case mtk::ozimma::fp64_int8_13:
+	case mtk::ozimma::fp64_int8_auto:
 		input_type = mtk::ozimma::fp64;
 		break;
 	default:
 		OZIMMA_NOT_IMPLEMENTED;
 	}
+
+	gemm_list_t gemm_list = {
+		std::tuple<std::size_t, std::size_t, std::size_t, mtk::ozimma::element_kind_t, mtk::ozimma::compute_mode_t>{m, n, k, element_kind, compute_mode}
+	};
+	mtk::ozimma::reallocate_working_memory(handle, gemm_list);
 
 	if (input_type == mtk::ozimma::fp64) {
 		if (
@@ -763,6 +769,30 @@ int mtk::ozimma::gemm(
 				using T = cuDoubleComplex;
 				gemm_int8(handle, op_A, op_B, m, n, k, reinterpret_cast<const T*>(alpha), reinterpret_cast<const T*>(a_ptr), lda, reinterpret_cast<const T*>(b_ptr), ldb, reinterpret_cast<const T*>(beta), reinterpret_cast<T*>(c_ptr), ldc, compute_mode);
 			}
+		} else if (compute_mode == mtk::ozimma::fp64_int8_auto) {
+			const auto auto_mode = mtk::ozimma::auto_mode_select(
+						handle,
+						op_A,
+						op_B,
+						m, n, k,
+						a_ptr, lda,
+						b_ptr, ldb,
+						element_kind,
+						1
+					);
+			ozIMMA_log("AUTO selected mode = " + mtk::ozimma::get_compute_mode_name_str(auto_mode));
+			return mtk::ozimma::gemm(
+					handle,
+					op_B, op_A,
+					m, n, k,
+					alpha,
+					a_ptr, lda,
+					b_ptr, ldb,
+					beta,
+					c_ptr, ldc,
+					auto_mode,
+					element_kind
+					);
 		} else if (compute_mode == mtk::ozimma::dgemm) {
 			const auto dtype = element_kind == mtk::ozimma::real ? CUDA_R_64F : CUDA_C_64F;
 				cublasGemmEx_org(

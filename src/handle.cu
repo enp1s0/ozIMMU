@@ -7,6 +7,7 @@ int mtk::ozimma::create(
 		mtk::ozimma::handle_t *h,
 		mtk::ozimma::malloc_mode_t mm
 		) {
+	ozIMMA_log("Initializing ozIMMA handle");
 	auto handle = (*h = new mtk::ozimma::handle);
 	// Initialize cuBLAS handler
 	CUTF_CHECK_ERROR(cublasCreate_org(&(handle->cublas_handle)));
@@ -18,16 +19,28 @@ int mtk::ozimma::create(
 	// Disable profiling by default
 	mtk::ozimma::disable_profiling(*h);
 
+	CUTF_CHECK_ERROR(cudaMalloc(&(handle->d_mantissa_loss_counter_ptr), sizeof(unsigned long long int) * handle->mantissa_loss_counter_length));
+
 	return 0;
 }
 
 int mtk::ozimma::destroy(
 		mtk::ozimma::handle_t handle
 		) {
-	// Destroy cuBLAS handler
-	CUTF_CHECK_ERROR(cublasDestroy_org(handle->cublas_handle));
+	if (handle) {
+		ozIMMA_log("Destroying ozIMMA handle");
+		// Destroy cuBLAS handler
+		CUTF_CHECK_ERROR(cublasDestroy_org(handle->cublas_handle));
 
-	delete handle;
+		CUTF_CHECK_ERROR(cudaFree(handle->working_memory_ptr));
+		handle->working_memory_ptr = nullptr;
+
+		CUTF_CHECK_ERROR(cudaFree(handle->d_mantissa_loss_counter_ptr));
+		handle->d_mantissa_loss_counter_ptr = nullptr;
+
+		delete handle;
+		handle = nullptr;
+	}
 
 	return 0;
 }
@@ -83,6 +96,8 @@ std::size_t mtk::ozimma::reallocate_working_memory(
 	if (max_working_memory_size > handle->current_working_memory_size) {
 		handle->current_working_memory_size = max_working_memory_size;
 
+		ozIMMA_log("Reallocated moery : " + std::to_string(max_working_memory_size) + " B");
+
 		if (handle->working_memory_ptr != nullptr) {
 			if (handle->malloc_mode == mtk::ozimma::malloc_sync) {
 				CUTF_CHECK_ERROR(cudaFree(handle->working_memory_ptr));
@@ -127,10 +142,13 @@ std::string mtk::ozimma::get_compute_mode_name_str(
 		return "fp64_int8_12";
 	case mtk::ozimma::fp64_int8_13:
 		return "fp64_int8_13";
+	case mtk::ozimma::fp64_int8_auto:
+		return "fp64_int8_auto";
 	default:
 		break;
 	}
-	return "Unknown";
+	OZIMMA_NOT_IMPLEMENTED;
+	return "";
 }
 
 mtk::ozimma::data_t mtk::ozimma::get_output_type(
@@ -148,6 +166,7 @@ mtk::ozimma::data_t mtk::ozimma::get_output_type(
 	case mtk::ozimma::fp64_int8_11:
 	case mtk::ozimma::fp64_int8_12:
 	case mtk::ozimma::fp64_int8_13:
+	case mtk::ozimma::fp64_int8_auto:
 	case mtk::ozimma::dgemm:
 		return mtk::ozimma::fp64;
 

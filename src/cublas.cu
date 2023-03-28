@@ -33,6 +33,7 @@ mtk::ozimma::compute_mode_t get_compute_mode(
 		mtk::ozimma::fp64_int8_11,
 		mtk::ozimma::fp64_int8_12,
 		mtk::ozimma::fp64_int8_13,
+		mtk::ozimma::fp64_int8_auto,
 	};
 
 	if (env_val != nullptr) {
@@ -104,9 +105,6 @@ CUBLASAPI cublasStatus_t CUBLASWINAPI cublasCreate_v2 (cublasHandle_t *handle) {
 			get_global_ozimma_handle(),
 			get_default_gemm_list()
 			);
-	if (reallocated_size != 0) {
-		ozIMMA_log("Reallocated moery : " + std::to_string(reallocated_size) + " B");
-	}
 
 	// Run the original function
 	return mtk::ozimma::cublasCreate_org(handle);
@@ -153,14 +151,6 @@ CUBLASAPI cublasStatus_t cublasGemmEx(cublasHandle_t handle, cublasOperation_t t
 		cudaStream_t cuda_stream;
 		CUTF_CHECK_ERROR(cublasGetStream(handle, &cuda_stream));
 		mtk::ozimma::set_cuda_stream(get_global_ozimma_handle(), cuda_stream);
-
-		const auto reallocated_size = mtk::ozimma::reallocate_working_memory(
-				get_global_ozimma_handle(),
-				gemm_config
-				);
-		if (reallocated_size != 0) {
-			ozIMMA_log("Reallocated moery : " + std::to_string(reallocated_size) + " B");
-		}
 
 		mtk::ozimma::CULiP::profile_result profile_result;
 		const auto profiling_flag = mtk::ozimma::CULiP::is_profiling_enabled();
@@ -336,14 +326,6 @@ CUBLASAPI cublasStatus_t cublasGemmStridedBatchedEx(cublasHandle_t handle, cubla
 		cudaStream_t cuda_stream;
 		CUTF_CHECK_ERROR(cublasGetStream(handle, &cuda_stream));
 		mtk::ozimma::set_cuda_stream(get_global_ozimma_handle(), cuda_stream);
-
-		const auto reallocated_size = mtk::ozimma::reallocate_working_memory(
-				get_global_ozimma_handle(),
-				gemm_config
-				);
-		if (reallocated_size != 0) {
-			ozIMMA_log("Reallocated moery : " + std::to_string(reallocated_size) + " B");
-		}
 
 		mtk::ozimma::CULiP::profile_result profile_result;
 		const auto profiling_flag = mtk::ozimma::CULiP::is_profiling_enabled();
