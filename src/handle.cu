@@ -205,11 +205,11 @@ void mtk::ozimma::disable_profiling(mtk::ozimma::handle_t handle) {
 	handle->profiler.disable_measurement();
 }
 
-void mtk::ozimma::print_profiler_result(mtk::ozimma::handle_t handle, const bool csv) {
+void mtk::ozimma::print_profiler_result(mtk::ozimma::handle_t handle, const std::string tag, const bool csv) {
 	if (!csv) {
-		handle->profiler.print_result();
+		handle->profiler.print_result(tag);
 	} else {
-		handle->profiler.print_result_csv();
+		handle->profiler.print_result_csv(tag);
 	}
 }
 
