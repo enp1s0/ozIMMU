@@ -495,9 +495,9 @@ mtk::ozimma::compute_mode_t auto_mode_select_core(
 
 	const auto dist = mtk::ozimma::get_mantissa_loss_total(
 			*handle,
-			k, n,
+			n, k,
 			b_ptr, ldb,
-				op_B == mtk::ozimma::op_n ? mtk::ozimma::op_t : mtk::ozimma::op_n,
+			op_B == mtk::ozimma::op_n ? mtk::ozimma::op_t : mtk::ozimma::op_n,
 			bits_per_int8,
 			handle->cuda_stream,
 			true

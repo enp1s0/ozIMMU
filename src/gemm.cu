@@ -783,7 +783,7 @@ int mtk::ozimma::gemm(
 			ozIMMA_log("AUTO selected mode = " + mtk::ozimma::get_compute_mode_name_str(auto_mode));
 			return mtk::ozimma::gemm(
 					handle,
-					op_B, op_A,
+					op_A, op_B,
 					m, n, k,
 					alpha,
 					a_ptr, lda,
