@@ -28,17 +28,18 @@ The supported compute modes are [here](#supported-compute-mode).
 3. Execute the application
 
 ### Supported compute mode
-| Mode       | Tensor Core type | Num splits |                   |
-|:-----------|:-----------------|:-----------|:------------------|
-|dgemm       | --               | --         | Disable hijacking |
-|fp64_int8_6 | Int8 TC          | 6          |                   |
-|fp64_int8_7 | Int8 TC          | 7          |                   |
-|fp64_int8_8 | Int8 TC          | 8          |                   |
-|fp64_int8_9 | Int8 TC          | 9          |                   |
-|fp64_int8_10| Int8 TC          | 10         |                   |
-|fp64_int8_11| Int8 TC          | 11         |                   |
-|fp64_int8_12| Int8 TC          | 12         |                   |
-|fp64_int8_13| Int8 TC          | 13         |                   |
+| Mode          | Tensor Core type | Num splits |                         |
+|:--------------|:-----------------|:-----------|:------------------------|
+|dgemm          | --               | --         | Disable hijacking       |
+|fp64_int8_6    | Int8 TC          | 6          |                         |
+|fp64_int8_7    | Int8 TC          | 7          |                         |
+|fp64_int8_8    | Int8 TC          | 8          |                         |
+|fp64_int8_9    | Int8 TC          | 9          |                         |
+|fp64_int8_10   | Int8 TC          | 10         |                         |
+|fp64_int8_11   | Int8 TC          | 11         |                         |
+|fp64_int8_12   | Int8 TC          | 12         |                         |
+|fp64_int8_13   | Int8 TC          | 13         |                         |
+|fp64_int8_auto | Int8 TC          | AUTO       | fp64_int8_6..13 / dgemm |
 
 
 ### Optional environmental variables
@@ -54,6 +55,9 @@ export OZIMMA_ENABLE_CULIP_PROFILING=1
 
 # Choose malloc mode
 export OZIMMA_MALLOC_ASYNC=1
+
+# Set AUTO mode mantissa loss threshold
+export OZIMMA_AUTO_AVG_MANTISSA_LOSS_THRESHOLD=1.5
 ```
 
 ## License
