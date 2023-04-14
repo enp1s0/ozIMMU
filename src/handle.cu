@@ -216,3 +216,11 @@ void mtk::ozimma::print_profiler_result(mtk::ozimma::handle_t handle, const std:
 void mtk::ozimma::clear_profiler_result(mtk::ozimma::handle_t handle) {
 	handle->profiler.clear();
 }
+
+void mtk::ozimma::set_auto_mantissa_loss_threashold(mtk::ozimma::handle_t handle, const double threshold) {
+	handle->avg_mantissa_loss_threshold = threshold;
+}
+
+double get_auto_mantissa_loss_threashold(mtk::ozimma::handle_t handle) {
+	return handle->avg_mantissa_loss_threshold;
+}

@@ -56,6 +56,9 @@ void disable_profiling(mtk::ozimma::handle_t handle);
 void print_profiler_result(mtk::ozimma::handle_t handle, const std::string tag, const bool csv = false);
 void clear_profiler_result(mtk::ozimma::handle_t handle);
 
+void set_auto_mantissa_loss_threashold(mtk::ozimma::handle_t handle, const double threshold);
+double get_auto_mantissa_loss_threashold(mtk::ozimma::handle_t handle);
+
 using gemm_list_t = std::vector<std::tuple<std::size_t, std::size_t, std::size_t, mtk::ozimma::element_kind_t, mtk::ozimma::compute_mode_t>>;
 
 // ReturnA: memory size if reallocated; otherwise, zero
