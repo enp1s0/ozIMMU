@@ -2,6 +2,7 @@
 #include <unistd.h>
 #include <dlfcn.h>
 #include <stdexcept>
+#include <functional>
 #include <cuComplex.h>
 
 namespace mtk {
@@ -25,17 +26,15 @@ struct real_type<cuDoubleComplex> {using type = double;};
 
 
 // For logging
-template <class Func>
 inline void ozTCECGEMM_run_if_env_defined(
 		const std::string env_str,
-		const Func func
+		const std::function<void(void)> func
 		) {
 	const auto env = getenv(env_str.c_str());
 	if (env != nullptr && std::string(env) != "0") {
 		func();
 	}
 }
-
 
 inline void ozIMMA_log(
 		const std::string str

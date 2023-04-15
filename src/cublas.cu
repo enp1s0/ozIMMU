@@ -73,6 +73,17 @@ mtk::ozimma::handle_t& get_global_ozimma_handle() {
 		mtk::ozimma::create(global_ozimma_handle, malloc_mode);
 		ozIMMA_log("Successfully initialized");
 	}
+
+	const auto threshold_env = "OZIMMA_AUTO_AVG_MANTISSA_LOSS_THRESHOLD";
+	const auto threshold_env_ptr = getenv(threshold_env);
+	if (threshold_env_ptr != nullptr) {
+		try {
+			mtk::ozimma::set_auto_mantissa_loss_threashold(*global_ozimma_handle, std::stod(threshold_env_ptr));
+		} catch(const std::exception& e) {
+			throw std::runtime_error(std::string("ERROR: ") + e.what() + " [" + threshold_env + " = " + std::string(threshold_env_ptr) + "]");
+		}
+	}
+
 	return *global_ozimma_handle;
 }
 

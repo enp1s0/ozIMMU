@@ -778,9 +778,9 @@ int mtk::ozimma::gemm(
 						a_ptr, lda,
 						b_ptr, ldb,
 						element_kind,
-						1
+						handle->avg_mantissa_loss_threshold
 					);
-			ozIMMA_log("AUTO selected mode = " + mtk::ozimma::get_compute_mode_name_str(auto_mode));
+			ozIMMA_log("AUTO selected mode = " + mtk::ozimma::get_compute_mode_name_str(auto_mode) + ", threshold average mantissa loss = " + std::to_string(handle->avg_mantissa_loss_threshold));
 			return mtk::ozimma::gemm(
 					handle,
 					op_A, op_B,

@@ -22,6 +22,8 @@ struct mtk::ozimma::handle {
 	enum{ mantissa_loss_counter_length = 13 - 6 + 1};
 	unsigned long long int* d_mantissa_loss_counter_ptr;
 	compute_mode_t last_auto_mode = mtk::ozimma::dgemm;
+
+	double avg_mantissa_loss_threshold = 0;
 };
 
 namespace mtk {
