@@ -540,7 +540,7 @@ int gemm_int8<double>(
 			bits_per_int8
 			);
 
-	std::size_t A_working_memory_size = mtk::ozimma::detail::calculate_working_memory_size(m, n, compute_mode, mtk::ozimma::detail::matrix_A, mtk::ozimma::real);
+	std::size_t A_working_memory_size = mtk::ozimma::detail::calculate_working_memory_size(m, k, compute_mode, mtk::ozimma::detail::matrix_A, mtk::ozimma::real);
 
 	const auto& gemm_pair_config_list = mtk::ozimma::detail::get_split_config(compute_mode).gemm_pair_config_list;
 	for (const auto& gemm_pair_config : gemm_pair_config_list) {
