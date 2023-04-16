@@ -128,7 +128,7 @@ void gemm_eval_core(
 	mtk::mateval::error_map_t error;
 	if (element_kind == mtk::ozimma::real) {
 		error = mtk::mateval::cuda::get_error_AxB(
-				mtk::mateval::relative_residual | mtk::mateval::max_relative_error,
+				mtk::mateval::avg_relative_error | mtk::mateval::max_relative_error,
 				m, n, k,
 				conv_layout_oz2mateval(op_a),
 				conv_layout_oz2mateval(op_b),
@@ -139,7 +139,7 @@ void gemm_eval_core(
 				);
 	} else {
 		error = mtk::mateval::cuda::get_error_AxB(
-				mtk::mateval::relative_residual | mtk::mateval::max_relative_error,
+				mtk::mateval::avg_relative_error | mtk::mateval::max_relative_error,
 				m, n, k,
 				conv_layout_oz2mateval(op_a),
 				conv_layout_oz2mateval(op_b),
@@ -176,7 +176,7 @@ void gemm_eval_core(
 			input_mode.c_str(),
 			mtk::ozimma::get_compute_mode_name_str(mode).c_str(),
 			m, n, k,
-			error.at(mtk::mateval::relative_residual),
+			error.at(mtk::mateval::avg_relative_error),
 			error.at(mtk::mateval::max_relative_error),
 			throughput * 1e-12
 			);
