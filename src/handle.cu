@@ -15,6 +15,7 @@ int mtk::ozimma::create(
 	handle->current_working_memory_size = 0;
 	handle->working_memory_ptr = nullptr;
 	handle->malloc_mode = mm;
+	handle->cuda_stream = 0;
 
 	// Disable profiling by default
 	mtk::ozimma::disable_profiling(*h);
