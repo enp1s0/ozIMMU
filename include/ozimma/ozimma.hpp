@@ -47,7 +47,7 @@ enum element_kind_t {
 	complx,
 };
 
-int create (mtk::ozimma::handle_t* handle, const malloc_mode_t mm = malloc_async);
+int create (mtk::ozimma::handle_t* handle, const malloc_mode_t mm = malloc_sync);
 int destroy(mtk::ozimma::handle_t handle);
 void set_cuda_stream(mtk::ozimma::handle_t handle, const cudaStream_t cuda_stream);
 
