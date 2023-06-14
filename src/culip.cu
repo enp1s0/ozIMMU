@@ -10,14 +10,14 @@ const std::string CULIP_RESULT_PREFIX = "CULiP Result";
 const std::string CULIP_EXP_STATS_PREFIX = "CULiP ExpStats";
 const std::string CUMPSGEMM_ENABLE_CULIP_PROFILING_ENV_NAME = "OZIMMA_ENABLE_CULIP_PROFILING";
 
-void mtk::ozimma::CULiP::record_timestamp(void *tm_timestamp) {
+void mtk::ozimmu::CULiP::record_timestamp(void *tm_timestamp) {
 	struct timespec *tm_ptr = (struct timespec *)tm_timestamp;
 	clock_gettime(CLOCK_MONOTONIC, tm_ptr);
 }
 
-void mtk::ozimma::CULiP::print_profile_result(void *profile_result_ptr) {
+void mtk::ozimmu::CULiP::print_profile_result(void *profile_result_ptr) {
 	const auto profile_result =
-	    *((mtk::ozimma::CULiP::profile_result*)profile_result_ptr);
+	    *((mtk::ozimmu::CULiP::profile_result*)profile_result_ptr);
 
 	const unsigned long elapsed_time_us =
 	    ((long)profile_result.end_timestamp.tv_sec -
@@ -29,13 +29,13 @@ void mtk::ozimma::CULiP::print_profile_result(void *profile_result_ptr) {
 	fflush(stdout);
 }
 
-void mtk::ozimma::CULiP::launch_function(cudaStream_t cuda_stream, void (*fn)(void*), void* const arg) {
+void mtk::ozimmu::CULiP::launch_function(cudaStream_t cuda_stream, void (*fn)(void*), void* const arg) {
 	CUTF_CHECK_ERROR(cudaStreamSynchronize(cuda_stream));
 	fn(arg);
 	CUTF_CHECK_ERROR(cudaStreamSynchronize(cuda_stream));
 }
 
-bool mtk::ozimma::CULiP::is_profiling_enabled() {
+bool mtk::ozimmu::CULiP::is_profiling_enabled() {
 	const char* value = getenv(CUMPSGEMM_ENABLE_CULIP_PROFILING_ENV_NAME.c_str());
 	if (value == NULL) {
 		return false;
@@ -47,7 +47,7 @@ bool mtk::ozimma::CULiP::is_profiling_enabled() {
 }
 
 #define CULiP_CUBLAS_COMPUTE_T_CASE_STRING(compute_type) case compute_type: return #compute_type
-const char* mtk::ozimma::CULiP::get_cublasComputeType_t_string(const cublasComputeType_t compute_type) {
+const char* mtk::ozimmu::CULiP::get_cublasComputeType_t_string(const cublasComputeType_t compute_type) {
 	switch(compute_type) {
 		CULiP_CUBLAS_COMPUTE_T_CASE_STRING(CUBLAS_COMPUTE_16F);
 		CULiP_CUBLAS_COMPUTE_T_CASE_STRING(CUBLAS_COMPUTE_16F_PEDANTIC);
@@ -83,7 +83,7 @@ const char* mtk::ozimma::CULiP::get_cublasComputeType_t_string(const cublasCompu
 	}
 }
 
-const char* mtk::ozimma::CULiP::get_cublasOperation_t_string(const cublasOperation_t op) {
+const char* mtk::ozimmu::CULiP::get_cublasOperation_t_string(const cublasOperation_t op) {
 	switch(op) {
 	case CUBLAS_OP_N:
 		return "N";

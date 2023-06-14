@@ -1,5 +1,5 @@
 #include <cutf/cublas.hpp>
-#include <ozimma/ozimma.hpp>
+#include <ozimmu/ozimmu.hpp>
 #include "culip.hpp"
 #include "handle.hpp"
 #include "utils.hpp"
@@ -8,13 +8,13 @@
 #define CUBLASAPI
 #endif
 
-mtk::ozimma::gemm_list_t get_default_gemm_list() {
-	return mtk::ozimma::gemm_list_t{
-		std::tuple<std::size_t, std::size_t, std::size_t, mtk::ozimma::element_kind_t, mtk::ozimma::compute_mode_t>{1024, 1024, 1024, mtk::ozimma::real, mtk::ozimma::fp64_int8_9}
+mtk::ozimmu::gemm_list_t get_default_gemm_list() {
+	return mtk::ozimmu::gemm_list_t{
+		std::tuple<std::size_t, std::size_t, std::size_t, mtk::ozimmu::element_kind_t, mtk::ozimmu::compute_mode_t>{1024, 1024, 1024, mtk::ozimmu::real, mtk::ozimmu::fp64_int8_9}
 	};
 }
 
-mtk::ozimma::compute_mode_t get_compute_mode(
+mtk::ozimmu::compute_mode_t get_compute_mode(
 		const std::size_t m,
 		const std::size_t n,
 		const std::size_t k
@@ -22,55 +22,55 @@ mtk::ozimma::compute_mode_t get_compute_mode(
 	const char* env_name = "OZIMMA_COMPUTE_MODE";
 	const char* env_val = getenv(env_name);
 
-	std::vector<mtk::ozimma::compute_mode_t> supported_gemm_mode = {
-		mtk::ozimma::sgemm,
-		mtk::ozimma::dgemm,
-		mtk::ozimma::fp64_int8_6,
-		mtk::ozimma::fp64_int8_7,
-		mtk::ozimma::fp64_int8_8,
-		mtk::ozimma::fp64_int8_9,
-		mtk::ozimma::fp64_int8_10,
-		mtk::ozimma::fp64_int8_11,
-		mtk::ozimma::fp64_int8_12,
-		mtk::ozimma::fp64_int8_13,
-		mtk::ozimma::fp64_int8_auto,
+	std::vector<mtk::ozimmu::compute_mode_t> supported_gemm_mode = {
+		mtk::ozimmu::sgemm,
+		mtk::ozimmu::dgemm,
+		mtk::ozimmu::fp64_int8_6,
+		mtk::ozimmu::fp64_int8_7,
+		mtk::ozimmu::fp64_int8_8,
+		mtk::ozimmu::fp64_int8_9,
+		mtk::ozimmu::fp64_int8_10,
+		mtk::ozimmu::fp64_int8_11,
+		mtk::ozimmu::fp64_int8_12,
+		mtk::ozimmu::fp64_int8_13,
+		mtk::ozimmu::fp64_int8_auto,
 	};
 
 	if (env_val != nullptr) {
 		const std::string env_val_str = env_val;
 
 		for (const auto mode : supported_gemm_mode) {
-			if (mtk::ozimma::get_compute_mode_name_str(mode) == env_val_str) {
+			if (mtk::ozimmu::get_compute_mode_name_str(mode) == env_val_str) {
 				return mode;
 			}
 		}
 	}
 
-	return mtk::ozimma::dgemm;
+	return mtk::ozimmu::dgemm;
 }
 
-mtk::ozimma::operation_t op_cublas2oz(
+mtk::ozimmu::operation_t op_cublas2oz(
 		const cublasOperation_t op
 		) {
 	if (op == CUBLAS_OP_N) {
-		return mtk::ozimma::op_n;
+		return mtk::ozimmu::op_n;
 	} else {
-		return mtk::ozimma::op_t;
+		return mtk::ozimmu::op_t;
 	}
 }
 
-mtk::ozimma::handle_t* global_ozimma_handle = nullptr;
+mtk::ozimmu::handle_t* global_ozimmu_handle = nullptr;
 
-mtk::ozimma::handle_t& get_global_ozimma_handle() {
-	if (global_ozimma_handle == nullptr) {
-		mtk::ozimma::malloc_mode_t malloc_mode = mtk::ozimma::malloc_sync;
+mtk::ozimmu::handle_t& get_global_ozimmu_handle() {
+	if (global_ozimmu_handle == nullptr) {
+		mtk::ozimmu::malloc_mode_t malloc_mode = mtk::ozimmu::malloc_sync;
 		ozTCECGEMM_run_if_env_defined(
 				"OZIMMA_MALLOC_ASYNC",
-				[&](){malloc_mode = mtk::ozimma::malloc_async;}
+				[&](){malloc_mode = mtk::ozimmu::malloc_async;}
 				);
 		ozIMMA_log("Initializing ozIMMA handle...");
-		global_ozimma_handle = new mtk::ozimma::handle_t;
-		mtk::ozimma::create(global_ozimma_handle, malloc_mode);
+		global_ozimmu_handle = new mtk::ozimmu::handle_t;
+		mtk::ozimmu::create(global_ozimmu_handle, malloc_mode);
 		ozIMMA_log("Successfully initialized");
 	}
 
@@ -78,18 +78,18 @@ mtk::ozimma::handle_t& get_global_ozimma_handle() {
 	const auto threshold_env_ptr = getenv(threshold_env);
 	if (threshold_env_ptr != nullptr) {
 		try {
-			mtk::ozimma::set_auto_mantissa_loss_threashold(*global_ozimma_handle, std::stod(threshold_env_ptr));
+			mtk::ozimmu::set_auto_mantissa_loss_threashold(*global_ozimmu_handle, std::stod(threshold_env_ptr));
 		} catch(const std::exception& e) {
 			throw std::runtime_error(std::string("ERROR: ") + e.what() + " [" + threshold_env + " = " + std::string(threshold_env_ptr) + "]");
 		}
 	}
 
-	return *global_ozimma_handle;
+	return *global_ozimmu_handle;
 }
 
 std::string cublas_library_name = "libcublas.so";
 
-cublasStatus_t mtk::ozimma::cublasCreate_org(
+cublasStatus_t mtk::ozimmu::cublasCreate_org(
 		cublasHandle_t* handle_ptr
 		) {
 	cublasStatus_t (*func_ptr)(cublasHandle_t*);
@@ -97,7 +97,7 @@ cublasStatus_t mtk::ozimma::cublasCreate_org(
 	return (*func_ptr)(handle_ptr);
 }
 
-cublasStatus_t mtk::ozimma::cublasDestroy_org(
+cublasStatus_t mtk::ozimmu::cublasDestroy_org(
 		cublasHandle_t cublas_handle
 		) {
 	cublasStatus_t (*func_ptr)(cublasHandle_t);
@@ -112,13 +112,13 @@ CUBLASAPI cublasStatus_t CUBLASWINAPI cublasCreate_v2 (cublasHandle_t *handle) {
 	return CUBLAS_STATUS_NOT_SUPPORTED;
 #else
 	// Allocate memory
-	const auto reallocated_size = mtk::ozimma::reallocate_working_memory(
-			get_global_ozimma_handle(),
+	const auto reallocated_size = mtk::ozimmu::reallocate_working_memory(
+			get_global_ozimmu_handle(),
 			get_default_gemm_list()
 			);
 
 	// Run the original function
-	return mtk::ozimma::cublasCreate_org(handle);
+	return mtk::ozimmu::cublasCreate_org(handle);
 #endif
 }
 
@@ -126,17 +126,17 @@ CUBLASAPI cublasStatus_t CUBLASWINAPI cublasDestroy_v2 (cublasHandle_t handle) {
 #ifdef __CUDA_ARCH__
 	return CUBLAS_STATUS_NOT_SUPPORTED;
 #else
-	if (global_ozimma_handle != nullptr) {
+	if (global_ozimmu_handle != nullptr) {
 		ozIMMA_log("Destroying ozIMMA handle...");
-		mtk::ozimma::destroy(
-				get_global_ozimma_handle()
+		mtk::ozimmu::destroy(
+				get_global_ozimmu_handle()
 				);
-		delete global_ozimma_handle;
-		global_ozimma_handle = nullptr;
+		delete global_ozimmu_handle;
+		global_ozimmu_handle = nullptr;
 	}
 
 	// Run the original function
-	return mtk::ozimma::cublasDestroy_org(handle);
+	return mtk::ozimmu::cublasDestroy_org(handle);
 #endif
 }
 
@@ -152,31 +152,31 @@ CUBLASAPI cublasStatus_t cublasGemmEx(cublasHandle_t handle, cublasOperation_t t
 	return CUBLAS_STATUS_NOT_SUPPORTED;
 #else
 	const auto compute_mode = get_compute_mode(m, n, k);
-	if (compute_mode != mtk::ozimma::dgemm && m >= 1024 && n >= 1024 && k >= 1024 &&
+	if (compute_mode != mtk::ozimmu::dgemm && m >= 1024 && n >= 1024 && k >= 1024 &&
 			((Atype == CUDA_R_64F && Btype == CUDA_R_64F && Ctype == CUDA_R_64F) || (Atype == CUDA_C_64F && Btype == CUDA_C_64F && Ctype == CUDA_C_64F))
 			) {
-		const auto gemm_config = mtk::ozimma::gemm_list_t {
-			std::tuple<std::size_t, std::size_t, std::size_t, mtk::ozimma::element_kind_t, mtk::ozimma::compute_mode_t>{m, n, k, mtk::ozimma::complx, compute_mode}
+		const auto gemm_config = mtk::ozimmu::gemm_list_t {
+			std::tuple<std::size_t, std::size_t, std::size_t, mtk::ozimmu::element_kind_t, mtk::ozimmu::compute_mode_t>{m, n, k, mtk::ozimmu::complx, compute_mode}
 		};
 
 		cudaStream_t cuda_stream;
 		CUTF_CHECK_ERROR(cublasGetStream(handle, &cuda_stream));
-		mtk::ozimma::set_cuda_stream(get_global_ozimma_handle(), cuda_stream);
+		mtk::ozimmu::set_cuda_stream(get_global_ozimmu_handle(), cuda_stream);
 
-		mtk::ozimma::CULiP::profile_result profile_result;
-		const auto profiling_flag = mtk::ozimma::CULiP::is_profiling_enabled();
+		mtk::ozimmu::CULiP::profile_result profile_result;
+		const auto profiling_flag = mtk::ozimmu::CULiP::is_profiling_enabled();
 
 		if (profiling_flag) {
 			snprintf(profile_result.function_name, profile_result.function_name_length - 1,
 					"%s%s-%s%s-m%d-n%d-k%d",
 					(Atype == CUDA_R_64F ? "D" : "Z"),
-					mtk::ozimma::get_compute_mode_name_str(compute_mode).c_str(),
-					mtk::ozimma::CULiP::get_cublasOperation_t_string(transa), mtk::ozimma::CULiP::get_cublasOperation_t_string(transb), m, n, k);
-			mtk::ozimma::CULiP::launch_function(cuda_stream, &mtk::ozimma::CULiP::record_timestamp, (void*)&profile_result.start_timestamp);
+					mtk::ozimmu::get_compute_mode_name_str(compute_mode).c_str(),
+					mtk::ozimmu::CULiP::get_cublasOperation_t_string(transa), mtk::ozimmu::CULiP::get_cublasOperation_t_string(transb), m, n, k);
+			mtk::ozimmu::CULiP::launch_function(cuda_stream, &mtk::ozimmu::CULiP::record_timestamp, (void*)&profile_result.start_timestamp);
 		}
 		if (Atype == CUDA_R_64F) {
-			mtk::ozimma::gemm(
-					get_global_ozimma_handle(),
+			mtk::ozimmu::gemm(
+					get_global_ozimmu_handle(),
 					op_cublas2oz(transa),
 					op_cublas2oz(transb),
 					m, n, k,
@@ -186,11 +186,11 @@ CUBLASAPI cublasStatus_t cublasGemmEx(cublasHandle_t handle, cublasOperation_t t
 					reinterpret_cast<const double*>(beta),
 					reinterpret_cast<double*>(C), ldc,
 					compute_mode,
-					mtk::ozimma::real
+					mtk::ozimmu::real
 					);
 		} else if (Atype == CUDA_C_64F) {
-			mtk::ozimma::gemm(
-					get_global_ozimma_handle(),
+			mtk::ozimmu::gemm(
+					get_global_ozimmu_handle(),
 					op_cublas2oz(transa),
 					op_cublas2oz(transb),
 					m, n, k,
@@ -200,16 +200,16 @@ CUBLASAPI cublasStatus_t cublasGemmEx(cublasHandle_t handle, cublasOperation_t t
 					reinterpret_cast<const cuDoubleComplex*>(beta),
 					reinterpret_cast<cuDoubleComplex*>(C), ldc,
 					compute_mode,
-					mtk::ozimma::complx
+					mtk::ozimmu::complx
 					);
 		}
 
 		if (profiling_flag) {
 			// Record end rimestamp
-			mtk::ozimma::CULiP::launch_function(cuda_stream, &mtk::ozimma::CULiP::record_timestamp, (void*)&profile_result.end_timestamp);
+			mtk::ozimmu::CULiP::launch_function(cuda_stream, &mtk::ozimmu::CULiP::record_timestamp, (void*)&profile_result.end_timestamp);
 
 			// Print result
-			mtk::ozimma::CULiP::launch_function(cuda_stream, &mtk::ozimma::CULiP::print_profile_result, (void*)&profile_result);
+			mtk::ozimmu::CULiP::launch_function(cuda_stream, &mtk::ozimmu::CULiP::print_profile_result, (void*)&profile_result);
 		}
 
 		return CUBLAS_STATUS_SUCCESS;
@@ -218,8 +218,8 @@ CUBLASAPI cublasStatus_t cublasGemmEx(cublasHandle_t handle, cublasOperation_t t
 	cudaStream_t cuda_stream;
 	CUTF_CHECK_ERROR(cublasGetStream(handle, &cuda_stream));
 
-	mtk::ozimma::CULiP::profile_result profile_result;
-	const auto profiling_flag = mtk::ozimma::CULiP::is_profiling_enabled();
+	mtk::ozimmu::CULiP::profile_result profile_result;
+	const auto profiling_flag = mtk::ozimmu::CULiP::is_profiling_enabled();
 
 	cublasStatus_t (*func_ptr)(cublasHandle_t, cublasOperation_t, cublasOperation_t, int, int, int, const void*, const void*, cudaDataType_t, int, const void*, cudaDataType_t, int, const void*, void*, cudaDataType_t, int, cublasComputeType_t, cublasGemmAlgo_t);
 	*(void**)(&func_ptr) = ozIMMA_get_function_pointer(
@@ -228,18 +228,18 @@ CUBLASAPI cublasStatus_t cublasGemmEx(cublasHandle_t handle, cublasOperation_t t
 			);
 
 	if (profiling_flag) {
-		snprintf(profile_result.function_name, profile_result.function_name_length - 1, "%s-%s%s-m%d-n%d-k%d", __func__, mtk::ozimma::CULiP::get_cublasOperation_t_string(transa), mtk::ozimma::CULiP::get_cublasOperation_t_string(transb), m, n, k);
-		mtk::ozimma::CULiP::launch_function(cuda_stream, &mtk::ozimma::CULiP::record_timestamp, (void*)&profile_result.start_timestamp);
+		snprintf(profile_result.function_name, profile_result.function_name_length - 1, "%s-%s%s-m%d-n%d-k%d", __func__, mtk::ozimmu::CULiP::get_cublasOperation_t_string(transa), mtk::ozimmu::CULiP::get_cublasOperation_t_string(transb), m, n, k);
+		mtk::ozimmu::CULiP::launch_function(cuda_stream, &mtk::ozimmu::CULiP::record_timestamp, (void*)&profile_result.start_timestamp);
 	}
 
 	const auto res = (*func_ptr)(handle, transa, transb, m, n, k, alpha, A, Atype, lda, B, Btype, ldb, beta, C, Ctype, ldc, computeType, algo);
 
 	if (profiling_flag) {
 		// Record end rimestamp
-		mtk::ozimma::CULiP::launch_function(cuda_stream, &mtk::ozimma::CULiP::record_timestamp, (void*)&profile_result.end_timestamp);
+		mtk::ozimmu::CULiP::launch_function(cuda_stream, &mtk::ozimmu::CULiP::record_timestamp, (void*)&profile_result.end_timestamp);
 
 		// Print result
-		mtk::ozimma::CULiP::launch_function(cuda_stream, &mtk::ozimma::CULiP::print_profile_result, (void*)&profile_result);
+		mtk::ozimmu::CULiP::launch_function(cuda_stream, &mtk::ozimmu::CULiP::print_profile_result, (void*)&profile_result);
 	}
 
 	return res;
@@ -327,33 +327,33 @@ CUBLASAPI cublasStatus_t cublasGemmStridedBatchedEx(cublasHandle_t handle, cubla
 	return CUBLAS_STATUS_NOT_SUPPORTED;
 #else
 	const auto compute_mode = get_compute_mode(m, n, k);
-	if (compute_mode != mtk::ozimma::dgemm && m >= 1024 && n >= 1024 && k >= 1024 &&
+	if (compute_mode != mtk::ozimmu::dgemm && m >= 1024 && n >= 1024 && k >= 1024 &&
 			((Atype == CUDA_R_64F && Btype == CUDA_R_64F && Ctype == CUDA_R_64F) || (Atype == CUDA_C_64F && Btype == CUDA_C_64F && Ctype == CUDA_C_64F))
 			) {
-		const auto gemm_config = mtk::ozimma::gemm_list_t {
-			std::tuple<std::size_t, std::size_t, std::size_t, mtk::ozimma::element_kind_t, mtk::ozimma::compute_mode_t>{m, n, k, mtk::ozimma::complx, compute_mode}
+		const auto gemm_config = mtk::ozimmu::gemm_list_t {
+			std::tuple<std::size_t, std::size_t, std::size_t, mtk::ozimmu::element_kind_t, mtk::ozimmu::compute_mode_t>{m, n, k, mtk::ozimmu::complx, compute_mode}
 		};
 
 		cudaStream_t cuda_stream;
 		CUTF_CHECK_ERROR(cublasGetStream(handle, &cuda_stream));
-		mtk::ozimma::set_cuda_stream(get_global_ozimma_handle(), cuda_stream);
+		mtk::ozimmu::set_cuda_stream(get_global_ozimmu_handle(), cuda_stream);
 
-		mtk::ozimma::CULiP::profile_result profile_result;
-		const auto profiling_flag = mtk::ozimma::CULiP::is_profiling_enabled();
+		mtk::ozimmu::CULiP::profile_result profile_result;
+		const auto profiling_flag = mtk::ozimmu::CULiP::is_profiling_enabled();
 
 		if (profiling_flag) {
 			snprintf(profile_result.function_name, profile_result.function_name_length - 1,
 					"%s%s_stridedBatched-%s%s-m%d-n%d-k%d-batch_count%d",
 					(Atype == CUDA_R_64F ? "D" : "Z"),
-					mtk::ozimma::get_compute_mode_name_str(compute_mode).c_str(),
-					mtk::ozimma::CULiP::get_cublasOperation_t_string(transa), mtk::ozimma::CULiP::get_cublasOperation_t_string(transb), m, n, k, batch_count);
-			mtk::ozimma::CULiP::launch_function(cuda_stream, &mtk::ozimma::CULiP::record_timestamp, (void*)&profile_result.start_timestamp);
+					mtk::ozimmu::get_compute_mode_name_str(compute_mode).c_str(),
+					mtk::ozimmu::CULiP::get_cublasOperation_t_string(transa), mtk::ozimmu::CULiP::get_cublasOperation_t_string(transb), m, n, k, batch_count);
+			mtk::ozimmu::CULiP::launch_function(cuda_stream, &mtk::ozimmu::CULiP::record_timestamp, (void*)&profile_result.start_timestamp);
 		}
 
 		for (int batch_id = 0; batch_id < batch_count; batch_id++) {
 			if (Atype == CUDA_R_64F) {
-				mtk::ozimma::gemm(
-						get_global_ozimma_handle(),
+				mtk::ozimmu::gemm(
+						get_global_ozimmu_handle(),
 						op_cublas2oz(transa),
 						op_cublas2oz(transb),
 						m, n, k,
@@ -363,11 +363,11 @@ CUBLASAPI cublasStatus_t cublasGemmStridedBatchedEx(cublasHandle_t handle, cubla
 						reinterpret_cast<const double*>(beta),
 						reinterpret_cast<double*>(C) + strideC * batch_id, ldc,
 						compute_mode,
-						mtk::ozimma::real
+						mtk::ozimmu::real
 						);
 			} else if (Atype == CUDA_C_64F) {
-				mtk::ozimma::gemm(
-						get_global_ozimma_handle(),
+				mtk::ozimmu::gemm(
+						get_global_ozimmu_handle(),
 						op_cublas2oz(transa),
 						op_cublas2oz(transb),
 						m, n, k,
@@ -377,17 +377,17 @@ CUBLASAPI cublasStatus_t cublasGemmStridedBatchedEx(cublasHandle_t handle, cubla
 						reinterpret_cast<const cuDoubleComplex*>(beta),
 						reinterpret_cast<cuDoubleComplex*>(C) + strideC * batch_id, ldc,
 						compute_mode,
-						mtk::ozimma::complx
+						mtk::ozimmu::complx
 						);
 			}
 		}
 
 		if (profiling_flag) {
 			// Record end rimestamp
-			mtk::ozimma::CULiP::launch_function(cuda_stream, &mtk::ozimma::CULiP::record_timestamp, (void*)&profile_result.end_timestamp);
+			mtk::ozimmu::CULiP::launch_function(cuda_stream, &mtk::ozimmu::CULiP::record_timestamp, (void*)&profile_result.end_timestamp);
 
 			// Print result
-			mtk::ozimma::CULiP::launch_function(cuda_stream, &mtk::ozimma::CULiP::print_profile_result, (void*)&profile_result);
+			mtk::ozimmu::CULiP::launch_function(cuda_stream, &mtk::ozimmu::CULiP::print_profile_result, (void*)&profile_result);
 		}
 
 		return CUBLAS_STATUS_SUCCESS;
@@ -396,8 +396,8 @@ CUBLASAPI cublasStatus_t cublasGemmStridedBatchedEx(cublasHandle_t handle, cubla
 	cudaStream_t cuda_stream;
 	CUTF_CHECK_ERROR(cublasGetStream(handle, &cuda_stream));
 
-	mtk::ozimma::CULiP::profile_result profile_result;
-	const auto profiling_flag = mtk::ozimma::CULiP::is_profiling_enabled();
+	mtk::ozimmu::CULiP::profile_result profile_result;
+	const auto profiling_flag = mtk::ozimmu::CULiP::is_profiling_enabled();
 
 	cublasStatus_t (*func_ptr)(cublasHandle_t, cublasOperation_t, cublasOperation_t, int, int, int, const void*, const void*, cudaDataType_t, int, long long int, const void*, cudaDataType_t, int, long long int, const void*, void*, cudaDataType_t, int, long long int, int, cublasComputeType_t, cublasGemmAlgo_t);
 	*(void**)(&func_ptr) = ozIMMA_get_function_pointer(
@@ -406,18 +406,18 @@ CUBLASAPI cublasStatus_t cublasGemmStridedBatchedEx(cublasHandle_t handle, cubla
 			);
 
 	if (profiling_flag) {
-		snprintf(profile_result.function_name, profile_result.function_name_length - 1, "%s-%s%s-m%d-n%d-k%d", __func__, mtk::ozimma::CULiP::get_cublasOperation_t_string(transa), mtk::ozimma::CULiP::get_cublasOperation_t_string(transb), m, n, k);
-		mtk::ozimma::CULiP::launch_function(cuda_stream, &mtk::ozimma::CULiP::record_timestamp, (void*)&profile_result.start_timestamp);
+		snprintf(profile_result.function_name, profile_result.function_name_length - 1, "%s-%s%s-m%d-n%d-k%d", __func__, mtk::ozimmu::CULiP::get_cublasOperation_t_string(transa), mtk::ozimmu::CULiP::get_cublasOperation_t_string(transb), m, n, k);
+		mtk::ozimmu::CULiP::launch_function(cuda_stream, &mtk::ozimmu::CULiP::record_timestamp, (void*)&profile_result.start_timestamp);
 	}
 
 	const auto res = (*func_ptr)(handle, transa, transb, m, n, k, alpha, A, Atype, lda, strideA, B, Btype, ldb, strideB, beta, C, Ctype, ldc, strideC, batch_count, computeType, algo);
 
 	if (profiling_flag) {
 		// Record end rimestamp
-		mtk::ozimma::CULiP::launch_function(cuda_stream, &mtk::ozimma::CULiP::record_timestamp, (void*)&profile_result.end_timestamp);
+		mtk::ozimmu::CULiP::launch_function(cuda_stream, &mtk::ozimmu::CULiP::record_timestamp, (void*)&profile_result.end_timestamp);
 
 		// Print result
-		mtk::ozimma::CULiP::launch_function(cuda_stream, &mtk::ozimma::CULiP::print_profile_result, (void*)&profile_result);
+		mtk::ozimmu::CULiP::launch_function(cuda_stream, &mtk::ozimmu::CULiP::print_profile_result, (void*)&profile_result);
 	}
 
 	return res;

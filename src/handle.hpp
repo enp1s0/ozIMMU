@@ -1,9 +1,9 @@
 #pragma once
-#include <ozimma/ozimma.hpp>
+#include <ozimmu/ozimmu.hpp>
 #include <cutf/cublas.hpp>
 #include <cutf/debug/time_breakdown.hpp>
 
-struct mtk::ozimma::handle {
+struct mtk::ozimmu::handle {
 	// handlers
 	cublasHandle_t cublas_handle;
 	cudaStream_t cuda_stream;
@@ -21,13 +21,13 @@ struct mtk::ozimma::handle {
 	// For auto mode
 	enum{ mantissa_loss_counter_length = 13 - 6 + 1};
 	unsigned long long int* d_mantissa_loss_counter_ptr;
-	compute_mode_t last_auto_mode = mtk::ozimma::dgemm;
+	compute_mode_t last_auto_mode = mtk::ozimmu::dgemm;
 
 	double avg_mantissa_loss_threshold = 0;
 };
 
 namespace mtk {
-namespace ozimma {
+namespace ozimmu {
 cublasStatus_t cublasCreate_org(
 		cublasHandle_t* handle_ptr
 		);
@@ -35,5 +35,5 @@ cublasStatus_t cublasCreate_org(
 cublasStatus_t cublasDestroy_org(
 		cublasHandle_t handle_ptr
 		);
-} // namespace ozimma
+} // namespace ozimmu
 } // namespace mtk

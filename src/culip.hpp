@@ -3,7 +3,7 @@
 #include <cutf/cublas.hpp>
 
 namespace mtk {
-namespace ozimma {
+namespace ozimmu {
 namespace CULiP {
 // Profile result
 struct profile_result {
@@ -25,5 +25,5 @@ bool is_profiling_enabled();
 const char* get_cublasComputeType_t_string(const cublasComputeType_t compute_type);
 const char* get_cublasOperation_t_string(const cublasOperation_t op);
 } // namespace CULiP
-} // namespace ozimma
+} // namespace ozimmu
 } // namespace mtk
