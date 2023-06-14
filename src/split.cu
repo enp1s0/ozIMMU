@@ -15,7 +15,7 @@ __device__ T get_exp_max_element(
 		const unsigned length,
 		const unsigned inc,
 		// [blockDim.x / warp_size]
-		typename mtk::ozimma::detail::real_type<T>::type* const working_smem_ptr
+		typename mtk::ozimmu::detail::real_type<T>::type* const working_smem_ptr
 		) {
 	using bs_t = typename cutf::experimental::fp::same_size_uint<T>::type;
 
@@ -77,7 +77,7 @@ __device__ cuDoubleComplex get_exp_max_element<cuDoubleComplex>(
 		// [blockDim.x / warp_size]
 		double* const working_smem_ptr
 		) {
-	using real_t = typename mtk::ozimma::detail::real_type<cuDoubleComplex>::type;
+	using real_t = typename mtk::ozimmu::detail::real_type<cuDoubleComplex>::type;
 	using bs_t = typename cutf::experimental::fp::same_size_uint<real_t>::type;
 
 	real_t local_real_abs_max = 0;
@@ -193,7 +193,7 @@ __device__ double x2(const double a) {
 template <class INPUT_T, class MANTISSA_T>
 __global__ void split_int8_kernel(
 		std::int8_t* const out_ptr,
-		typename mtk::ozimma::detail::real_type<INPUT_T>::type* const max_exp_ptr,
+		typename mtk::ozimmu::detail::real_type<INPUT_T>::type* const max_exp_ptr,
 		const std::size_t m,
 		const std::size_t n,
 		const INPUT_T* const in_ptr,
@@ -202,7 +202,7 @@ __global__ void split_int8_kernel(
 		const unsigned mantissa_length,
 		const bool col_major
 		) {
-	__shared__ typename mtk::ozimma::detail::real_type<INPUT_T>::type smem[32];
+	__shared__ typename mtk::ozimmu::detail::real_type<INPUT_T>::type smem[32];
 	const auto row_index = blockIdx.x;
 	const auto max_exp = x2(get_exp_max_element(
 			in_ptr + (col_major ? row_index : (row_index * ld)),
@@ -235,8 +235,8 @@ __global__ void split_int8_kernel(
 template <class INPUT_T>
 void split_int8_A(
 		std::int8_t* const out_ptr,
-		typename mtk::ozimma::detail::real_type<INPUT_T>::type* const max_exp_ptr,
-		const mtk::ozimma::operation_t op,
+		typename mtk::ozimmu::detail::real_type<INPUT_T>::type* const max_exp_ptr,
+		const mtk::ozimmu::operation_t op,
 		const std::size_t m,
 		const std::size_t n,
 		const INPUT_T* const in_ptr,
@@ -248,7 +248,7 @@ void split_int8_A(
 	const dim3 block_size = 256;
 	const dim3 grid_size = m;
 
-	const bool is_col_major = op == mtk::ozimma::op_n;
+	const bool is_col_major = op == mtk::ozimmu::op_n;
 
 	using MANTISSA_T = __uint128_t;
 	split_int8_kernel<INPUT_T, MANTISSA_T>
@@ -267,20 +267,20 @@ void split_int8_A(
 } // unnamed namespace
 
 template <class T>
-void mtk::ozimma::split_int8(
+void mtk::ozimmu::split_int8(
 		std::int8_t* const out_ptr,
-		typename mtk::ozimma::detail::real_type<T>::type* const max_exp_ptr,
+		typename mtk::ozimmu::detail::real_type<T>::type* const max_exp_ptr,
 		const std::size_t m,
 		const std::size_t n,
 		const T* const in_ptr,
 		const std::size_t ld,
-		const mtk::ozimma::operation_t op,
-		const mtk::ozimma::detail::matrix_t matrix,
+		const mtk::ozimmu::operation_t op,
+		const mtk::ozimmu::detail::matrix_t matrix,
 		const unsigned num_split,
 		const unsigned bits_per_int8,
 		const cudaStream_t cuda_stream
 		) {
-	if (matrix == mtk::ozimma::detail::matrix_A) {
+	if (matrix == mtk::ozimmu::detail::matrix_A) {
 		split_int8_A(
 				out_ptr,
 				max_exp_ptr,
@@ -295,7 +295,7 @@ void mtk::ozimma::split_int8(
 		split_int8_A(
 				out_ptr,
 				max_exp_ptr,
-				op == mtk::ozimma::op_n ? mtk::ozimma::op_t : mtk::ozimma::op_n,
+				op == mtk::ozimmu::op_n ? mtk::ozimmu::op_t : mtk::ozimmu::op_n,
 				n, m,
 				in_ptr, ld,
 				num_split,
@@ -306,29 +306,29 @@ void mtk::ozimma::split_int8(
 }
 // Instance
 template
-void mtk::ozimma::split_int8<double>(
+void mtk::ozimmu::split_int8<double>(
 		std::int8_t* const out_ptr,
 		double* const max_exp_ptr,
 		const std::size_t m,
 		const std::size_t n,
 		const double* const in_ptr,
 		const std::size_t ld,
-		const mtk::ozimma::operation_t op,
-		const mtk::ozimma::detail::matrix_t matrix,
+		const mtk::ozimmu::operation_t op,
+		const mtk::ozimmu::detail::matrix_t matrix,
 		const unsigned num_split,
 		const unsigned bits_per_int8,
 		const cudaStream_t cuda_stream
 		);
 template
-void mtk::ozimma::split_int8<cuDoubleComplex>(
+void mtk::ozimmu::split_int8<cuDoubleComplex>(
 		std::int8_t* const out_ptr,
 		double* const max_exp_ptr,
 		const std::size_t m,
 		const std::size_t n,
 		const cuDoubleComplex* const in_ptr,
 		const std::size_t ld,
-		const mtk::ozimma::operation_t op,
-		const mtk::ozimma::detail::matrix_t matrix,
+		const mtk::ozimmu::operation_t op,
+		const mtk::ozimmu::detail::matrix_t matrix,
 		const unsigned num_split,
 		const unsigned bits_per_int8,
 		const cudaStream_t cuda_stream
@@ -395,7 +395,7 @@ __global__ void calculate_mantissa_loss_kernel(
 		const unsigned mantissa_length,
 		const bool col_major
 		) {
-	__shared__ typename mtk::ozimma::detail::real_type<INPUT_T>::type smem[32];
+	__shared__ typename mtk::ozimmu::detail::real_type<INPUT_T>::type smem[32];
 	const auto row_index = blockIdx.x;
 	const auto max_exp = x2(get_exp_max_element(
 			in_ptr + (col_major ? row_index : (row_index * ld)),
@@ -417,13 +417,13 @@ __global__ void calculate_mantissa_loss_kernel(
 } // noname namespace
 
 template <class T>
-std::unordered_map<mtk::ozimma::compute_mode_t, std::uint64_t> mtk::ozimma::get_mantissa_loss_total(
-		mtk::ozimma::handle& handle,
+std::unordered_map<mtk::ozimmu::compute_mode_t, std::uint64_t> mtk::ozimmu::get_mantissa_loss_total(
+		mtk::ozimmu::handle& handle,
 		const std::size_t m,
 		const std::size_t n,
 		const T* const in_ptr,
 		const std::size_t ld,
-		const mtk::ozimma::operation_t op,
+		const mtk::ozimmu::operation_t op,
 		const unsigned bits_per_int8,
 		const cudaStream_t cuda_stream,
 		const bool download
@@ -431,7 +431,7 @@ std::unordered_map<mtk::ozimma::compute_mode_t, std::uint64_t> mtk::ozimma::get_
 	const dim3 block_size = 256;
 	const dim3 grid_size = m;
 
-	const bool is_col_major = op == mtk::ozimma::op_n;
+	const bool is_col_major = op == mtk::ozimmu::op_n;
 
 	calculate_mantissa_loss_kernel<T><<<grid_size, block_size, 0, handle.cuda_stream>>>(
 			handle.d_mantissa_loss_counter_ptr,
@@ -444,36 +444,36 @@ std::unordered_map<mtk::ozimma::compute_mode_t, std::uint64_t> mtk::ozimma::get_
 			is_col_major
 			);
 
-	std::unordered_map<mtk::ozimma::compute_mode_t, std::uint64_t> result;
+	std::unordered_map<mtk::ozimmu::compute_mode_t, std::uint64_t> result;
 	if (download) {
-		unsigned long long int host_buffer[mtk::ozimma::handle::mantissa_loss_counter_length];
-		CUTF_CHECK_ERROR(cudaMemcpy(host_buffer, handle.d_mantissa_loss_counter_ptr, sizeof(unsigned long long int) * mtk::ozimma::handle::mantissa_loss_counter_length, cudaMemcpyDefault));
+		unsigned long long int host_buffer[mtk::ozimmu::handle::mantissa_loss_counter_length];
+		CUTF_CHECK_ERROR(cudaMemcpy(host_buffer, handle.d_mantissa_loss_counter_ptr, sizeof(unsigned long long int) * mtk::ozimmu::handle::mantissa_loss_counter_length, cudaMemcpyDefault));
 
-		result.insert(std::make_pair<mtk::ozimma::compute_mode_t, std::uint64_t>(mtk::ozimma::fp64_int8_6 , host_buffer[0]));
-		result.insert(std::make_pair<mtk::ozimma::compute_mode_t, std::uint64_t>(mtk::ozimma::fp64_int8_7 , host_buffer[1]));
-		result.insert(std::make_pair<mtk::ozimma::compute_mode_t, std::uint64_t>(mtk::ozimma::fp64_int8_8 , host_buffer[2]));
-		result.insert(std::make_pair<mtk::ozimma::compute_mode_t, std::uint64_t>(mtk::ozimma::fp64_int8_9 , host_buffer[3]));
-		result.insert(std::make_pair<mtk::ozimma::compute_mode_t, std::uint64_t>(mtk::ozimma::fp64_int8_10, host_buffer[4]));
-		result.insert(std::make_pair<mtk::ozimma::compute_mode_t, std::uint64_t>(mtk::ozimma::fp64_int8_11, host_buffer[5]));
-		result.insert(std::make_pair<mtk::ozimma::compute_mode_t, std::uint64_t>(mtk::ozimma::fp64_int8_12, host_buffer[6]));
-		result.insert(std::make_pair<mtk::ozimma::compute_mode_t, std::uint64_t>(mtk::ozimma::fp64_int8_13, host_buffer[7]));
+		result.insert(std::make_pair<mtk::ozimmu::compute_mode_t, std::uint64_t>(mtk::ozimmu::fp64_int8_6 , host_buffer[0]));
+		result.insert(std::make_pair<mtk::ozimmu::compute_mode_t, std::uint64_t>(mtk::ozimmu::fp64_int8_7 , host_buffer[1]));
+		result.insert(std::make_pair<mtk::ozimmu::compute_mode_t, std::uint64_t>(mtk::ozimmu::fp64_int8_8 , host_buffer[2]));
+		result.insert(std::make_pair<mtk::ozimmu::compute_mode_t, std::uint64_t>(mtk::ozimmu::fp64_int8_9 , host_buffer[3]));
+		result.insert(std::make_pair<mtk::ozimmu::compute_mode_t, std::uint64_t>(mtk::ozimmu::fp64_int8_10, host_buffer[4]));
+		result.insert(std::make_pair<mtk::ozimmu::compute_mode_t, std::uint64_t>(mtk::ozimmu::fp64_int8_11, host_buffer[5]));
+		result.insert(std::make_pair<mtk::ozimmu::compute_mode_t, std::uint64_t>(mtk::ozimmu::fp64_int8_12, host_buffer[6]));
+		result.insert(std::make_pair<mtk::ozimmu::compute_mode_t, std::uint64_t>(mtk::ozimmu::fp64_int8_13, host_buffer[7]));
 	}
 
 	return result;
 }
 
-void mtk::ozimma::init_mantissa_loss_counter(
-		mtk::ozimma::handle& handle
+void mtk::ozimmu::init_mantissa_loss_counter(
+		mtk::ozimmu::handle& handle
 		) {
 	::init_mantissa_loss_counter(handle.d_mantissa_loss_counter_ptr, handle.mantissa_loss_counter_length, handle.cuda_stream);
 }
 
 namespace {
 template <class T>
-mtk::ozimma::compute_mode_t auto_mode_select_core(
-		mtk::ozimma::handle_t handle,
-		const mtk::ozimma::operation_t op_A,
-		const mtk::ozimma::operation_t op_B,
+mtk::ozimmu::compute_mode_t auto_mode_select_core(
+		mtk::ozimmu::handle_t handle,
+		const mtk::ozimmu::operation_t op_A,
+		const mtk::ozimmu::operation_t op_B,
 		const std::size_t m,
 		const std::size_t n,
 		const std::size_t k,
@@ -481,9 +481,9 @@ mtk::ozimma::compute_mode_t auto_mode_select_core(
 		const T* const b_ptr, const std::size_t ldb,
 		const double mantissa_loss_threshold) {
 	const auto bits_per_int8 = std::min<unsigned>(7u, std::ceil((31 - std::log2(k) / 2.)));
-	mtk::ozimma::init_mantissa_loss_counter(*handle);
+	mtk::ozimmu::init_mantissa_loss_counter(*handle);
 
-	mtk::ozimma::get_mantissa_loss_total(
+	mtk::ozimmu::get_mantissa_loss_total(
 			*handle,
 			m, k,
 			a_ptr, lda,
@@ -493,25 +493,25 @@ mtk::ozimma::compute_mode_t auto_mode_select_core(
 			false
 			);
 
-	const auto dist = mtk::ozimma::get_mantissa_loss_total(
+	const auto dist = mtk::ozimmu::get_mantissa_loss_total(
 			*handle,
 			n, k,
 			b_ptr, ldb,
-			op_B == mtk::ozimma::op_n ? mtk::ozimma::op_t : mtk::ozimma::op_n,
+			op_B == mtk::ozimmu::op_n ? mtk::ozimmu::op_t : mtk::ozimmu::op_n,
 			bits_per_int8,
 			handle->cuda_stream,
 			true
 			);
 
-	const std::vector<mtk::ozimma::compute_mode_t> mode_candidate_order = {
-		mtk::ozimma::fp64_int8_6,
-		mtk::ozimma::fp64_int8_7,
-		mtk::ozimma::fp64_int8_8,
-		mtk::ozimma::fp64_int8_9,
-		mtk::ozimma::fp64_int8_10,
-		mtk::ozimma::fp64_int8_11,
-		mtk::ozimma::fp64_int8_12,
-		mtk::ozimma::fp64_int8_13,
+	const std::vector<mtk::ozimmu::compute_mode_t> mode_candidate_order = {
+		mtk::ozimmu::fp64_int8_6,
+		mtk::ozimmu::fp64_int8_7,
+		mtk::ozimmu::fp64_int8_8,
+		mtk::ozimmu::fp64_int8_9,
+		mtk::ozimmu::fp64_int8_10,
+		mtk::ozimmu::fp64_int8_11,
+		mtk::ozimmu::fp64_int8_12,
+		mtk::ozimmu::fp64_int8_13,
 	};
 
 	for (const auto mode : mode_candidate_order) {
@@ -522,24 +522,24 @@ mtk::ozimma::compute_mode_t auto_mode_select_core(
 		}
 	}
 
-	return mtk::ozimma::dgemm;
+	return mtk::ozimmu::dgemm;
 }
 } // noname namespace
 
-mtk::ozimma::compute_mode_t mtk::ozimma::auto_mode_select(
-		mtk::ozimma::handle_t handle,
-		const mtk::ozimma::operation_t op_A,
-		const mtk::ozimma::operation_t op_B,
+mtk::ozimmu::compute_mode_t mtk::ozimmu::auto_mode_select(
+		mtk::ozimmu::handle_t handle,
+		const mtk::ozimmu::operation_t op_A,
+		const mtk::ozimmu::operation_t op_B,
 		const std::size_t m,
 		const std::size_t n,
 		const std::size_t k,
 		const void* const a_ptr, const std::size_t lda,
 		const void* const b_ptr, const std::size_t ldb,
-		const mtk::ozimma::element_kind_t element_kind,
+		const mtk::ozimmu::element_kind_t element_kind,
 		const double mantissa_loss_threshold
 		) {
-	mtk::ozimma::compute_mode_t result;
-	if (element_kind == mtk::ozimma::real) {
+	mtk::ozimmu::compute_mode_t result;
+	if (element_kind == mtk::ozimmu::real) {
 		result = auto_mode_select_core(
 				handle,
 				op_A, op_B,

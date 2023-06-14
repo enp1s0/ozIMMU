@@ -1,11 +1,11 @@
-# ozIMMA - DGEMM on Integer Tensor Core with Ozaki scheme
+# ozIMMU - DGEMM on Integer Tensor Core with Ozaki scheme
 
-This library hijacks the function calls for cuBLAS DGEMM functions and execute ozIMMA instead of them
+This library intercepts function calls for cuBLAS DGEMM functions and executes ozIMMU instead
 
 ## Build
 ```bash
-git clone https://github.com/enp1s0/ozIMMA --recursive
-cd ozIMMA
+git clone https://github.com/enp1s0/ozIMMU --recursive
+cd ozIMMU
 mkdir build
 cd build
 cmake ..
@@ -16,12 +16,12 @@ make -j4
 
 1. Set an environmental variable to hijack the function calls
 ```bash
-export LD_PRELOAD=/path/to/ozIMMA/build/libozimma.so
+export LD_PRELOAD=/path/to/ozIMMU/build/libozimma.so
 ```
 
 2. Set an environmental variable to choose the compute mode
 ```bash
-export OZIMMA_COMPUTE_MODE=fp64_int8_9
+export OZIMMU_COMPUTE_MODE=fp64_int8_9
 ```
 The supported compute modes are [here](#supported-compute-mode).
 
@@ -45,19 +45,19 @@ The supported compute modes are [here](#supported-compute-mode).
 ### Optional environmental variables
 ```bash
 # Show info log
-export OZIMMA_INFO=1
+export OZIMMU_INFO=1
 
 # Show error and warning log
-export OZIMMA_ERROR=1
+export OZIMMU_ERROR=1
 
 # Show CULiP ( https://github.com/enp1s0/CULiP ) log
-export OZIMMA_ENABLE_CULIP_PROFILING=1
+export OZIMMU_ENABLE_CULIP_PROFILING=1
 
 # Choose malloc mode
-export OZIMMA_MALLOC_ASYNC=1
+export OZIMMU_MALLOC_ASYNC=1
 
 # Set AUTO mode mantissa loss threshold
-export OZIMMA_AUTO_AVG_MANTISSA_LOSS_THRESHOLD=1.5
+export OZIMMU_AUTO_AVG_MANTISSA_LOSS_THRESHOLD=1.5
 ```
 
 ## License

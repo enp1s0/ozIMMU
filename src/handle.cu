@@ -3,12 +3,12 @@
 #include "config.hpp"
 #include "utils.hpp"
 
-int mtk::ozimma::create(
-		mtk::ozimma::handle_t *h,
-		mtk::ozimma::malloc_mode_t mm
+int mtk::ozimmu::create(
+		mtk::ozimmu::handle_t *h,
+		mtk::ozimmu::malloc_mode_t mm
 		) {
 	ozIMMA_log("Initializing ozIMMA handle");
-	auto handle = (*h = new mtk::ozimma::handle);
+	auto handle = (*h = new mtk::ozimmu::handle);
 	// Initialize cuBLAS handler
 	CUTF_CHECK_ERROR(cublasCreate_org(&(handle->cublas_handle)));
 
@@ -18,15 +18,15 @@ int mtk::ozimma::create(
 	handle->cuda_stream = 0;
 
 	// Disable profiling by default
-	mtk::ozimma::disable_profiling(*h);
+	mtk::ozimmu::disable_profiling(*h);
 
 	CUTF_CHECK_ERROR(cudaMalloc(&(handle->d_mantissa_loss_counter_ptr), sizeof(unsigned long long int) * handle->mantissa_loss_counter_length));
 
 	return 0;
 }
 
-int mtk::ozimma::destroy(
-		mtk::ozimma::handle_t handle
+int mtk::ozimmu::destroy(
+		mtk::ozimmu::handle_t handle
 		) {
 	if (handle) {
 		ozIMMA_log("Destroying ozIMMA handle");
@@ -46,20 +46,20 @@ int mtk::ozimma::destroy(
 	return 0;
 }
 
-void mtk::ozimma::set_cuda_stream(
-		mtk::ozimma::handle_t handle,
+void mtk::ozimmu::set_cuda_stream(
+		mtk::ozimmu::handle_t handle,
 		cudaStream_t cuda_stream
 		) {
 	// Set cuda stream to cuBLAS handler
 	CUTF_CHECK_ERROR(cublasSetStream(handle->cublas_handle, cuda_stream));
 
-	// Set ozimma handler
+	// Set ozimmu handler
 	handle->cuda_stream = cuda_stream;
 }
 
-std::size_t mtk::ozimma::reallocate_working_memory(
-		mtk::ozimma::handle_t handle,
-		const mtk::ozimma::gemm_list_t gemm_list
+std::size_t mtk::ozimmu::reallocate_working_memory(
+		mtk::ozimmu::handle_t handle,
+		const mtk::ozimmu::gemm_list_t gemm_list
 		) {
 	std::size_t max_working_memory_size = 0;
 
@@ -70,22 +70,22 @@ std::size_t mtk::ozimma::reallocate_working_memory(
 		const auto element_kind = std::get<3>(gemm);
 		const auto mode = std::get<4>(gemm);
 
-		const auto working_memory_A = mtk::ozimma::detail::calculate_working_memory_size(m, k, mode, detail::matrix_A, element_kind);
-		const auto working_memory_B = mtk::ozimma::detail::calculate_working_memory_size(k, n, mode, detail::matrix_B, element_kind);
-		const auto working_memory_C_fp32 = m * n * mtk::ozimma::get_data_size_in_byte(fp32);
-		const auto working_memory_C_fp64 = m * n * mtk::ozimma::get_data_size_in_byte(fp64) * (element_kind == mtk::ozimma::real ? 1 : 2);
+		const auto working_memory_A = mtk::ozimmu::detail::calculate_working_memory_size(m, k, mode, detail::matrix_A, element_kind);
+		const auto working_memory_B = mtk::ozimmu::detail::calculate_working_memory_size(k, n, mode, detail::matrix_B, element_kind);
+		const auto working_memory_C_fp32 = m * n * mtk::ozimmu::get_data_size_in_byte(fp32);
+		const auto working_memory_C_fp64 = m * n * mtk::ozimmu::get_data_size_in_byte(fp64) * (element_kind == mtk::ozimmu::real ? 1 : 2);
 		std::size_t etc = 0;
 		if (
-				mode == mtk::ozimma::fp64_int8_6  ||
-				mode == mtk::ozimma::fp64_int8_7  ||
-				mode == mtk::ozimma::fp64_int8_8  ||
-				mode == mtk::ozimma::fp64_int8_9  ||
-				mode == mtk::ozimma::fp64_int8_10 ||
-				mode == mtk::ozimma::fp64_int8_11 ||
-				mode == mtk::ozimma::fp64_int8_12 ||
-				mode == mtk::ozimma::fp64_int8_13
+				mode == mtk::ozimmu::fp64_int8_6  ||
+				mode == mtk::ozimmu::fp64_int8_7  ||
+				mode == mtk::ozimmu::fp64_int8_8  ||
+				mode == mtk::ozimmu::fp64_int8_9  ||
+				mode == mtk::ozimmu::fp64_int8_10 ||
+				mode == mtk::ozimmu::fp64_int8_11 ||
+				mode == mtk::ozimmu::fp64_int8_12 ||
+				mode == mtk::ozimmu::fp64_int8_13
 			 ) {
-			etc = (m + n) * mtk::ozimma::get_data_size_in_byte(fp64) * (element_kind == mtk::ozimma::real ? 1 : 2);
+			etc = (m + n) * mtk::ozimmu::get_data_size_in_byte(fp64) * (element_kind == mtk::ozimmu::real ? 1 : 2);
 		}
 
 		max_working_memory_size = std::max(
@@ -100,7 +100,7 @@ std::size_t mtk::ozimma::reallocate_working_memory(
 		ozIMMA_log("Reallocated moery : " + std::to_string(max_working_memory_size) + " B");
 
 		if (handle->working_memory_ptr != nullptr) {
-			if (handle->malloc_mode == mtk::ozimma::malloc_sync) {
+			if (handle->malloc_mode == mtk::ozimmu::malloc_sync) {
 				CUTF_CHECK_ERROR(cudaFree(handle->working_memory_ptr));
 			} else {
 				CUTF_CHECK_ERROR(cudaFreeAsync(handle->working_memory_ptr, handle->cuda_stream));
@@ -108,7 +108,7 @@ std::size_t mtk::ozimma::reallocate_working_memory(
 		}
 
 		// Realloc
-		if (handle->malloc_mode == mtk::ozimma::malloc_sync) {
+		if (handle->malloc_mode == mtk::ozimmu::malloc_sync) {
 			CUTF_CHECK_ERROR(cudaMalloc(&(handle->working_memory_ptr), handle->current_working_memory_size));
 		} else {
 			CUTF_CHECK_ERROR(cudaMallocAsync(&(handle->working_memory_ptr), handle->current_working_memory_size, handle->cuda_stream));
@@ -119,31 +119,31 @@ std::size_t mtk::ozimma::reallocate_working_memory(
 	return 0;
 }
 
-std::string mtk::ozimma::get_compute_mode_name_str(
-		const mtk::ozimma::compute_mode_t mode
+std::string mtk::ozimmu::get_compute_mode_name_str(
+		const mtk::ozimmu::compute_mode_t mode
 		) {
 	switch (mode) {
-	case mtk::ozimma::sgemm:
+	case mtk::ozimmu::sgemm:
 		return "sgemm";
-	case mtk::ozimma::dgemm:
+	case mtk::ozimmu::dgemm:
 		return "dgemm";
-	case mtk::ozimma::fp64_int8_6:
+	case mtk::ozimmu::fp64_int8_6:
 		return "fp64_int8_6";
-	case mtk::ozimma::fp64_int8_7:
+	case mtk::ozimmu::fp64_int8_7:
 		return "fp64_int8_7";
-	case mtk::ozimma::fp64_int8_8:
+	case mtk::ozimmu::fp64_int8_8:
 		return "fp64_int8_8";
-	case mtk::ozimma::fp64_int8_9:
+	case mtk::ozimmu::fp64_int8_9:
 		return "fp64_int8_9";
-	case mtk::ozimma::fp64_int8_10:
+	case mtk::ozimmu::fp64_int8_10:
 		return "fp64_int8_10";
-	case mtk::ozimma::fp64_int8_11:
+	case mtk::ozimmu::fp64_int8_11:
 		return "fp64_int8_11";
-	case mtk::ozimma::fp64_int8_12:
+	case mtk::ozimmu::fp64_int8_12:
 		return "fp64_int8_12";
-	case mtk::ozimma::fp64_int8_13:
+	case mtk::ozimmu::fp64_int8_13:
 		return "fp64_int8_13";
-	case mtk::ozimma::fp64_int8_auto:
+	case mtk::ozimmu::fp64_int8_auto:
 		return "fp64_int8_auto";
 	default:
 		break;
@@ -152,45 +152,45 @@ std::string mtk::ozimma::get_compute_mode_name_str(
 	return "";
 }
 
-mtk::ozimma::data_t mtk::ozimma::get_output_type(
-		const mtk::ozimma::compute_mode_t compute_mode
+mtk::ozimmu::data_t mtk::ozimmu::get_output_type(
+		const mtk::ozimmu::compute_mode_t compute_mode
 		) {
 	switch (compute_mode) {
-	case mtk::ozimma::sgemm:
-		return mtk::ozimma::fp32;
+	case mtk::ozimmu::sgemm:
+		return mtk::ozimmu::fp32;
 
-	case mtk::ozimma::fp64_int8_6:
-	case mtk::ozimma::fp64_int8_7:
-	case mtk::ozimma::fp64_int8_8:
-	case mtk::ozimma::fp64_int8_9:
-	case mtk::ozimma::fp64_int8_10:
-	case mtk::ozimma::fp64_int8_11:
-	case mtk::ozimma::fp64_int8_12:
-	case mtk::ozimma::fp64_int8_13:
-	case mtk::ozimma::fp64_int8_auto:
-	case mtk::ozimma::dgemm:
-		return mtk::ozimma::fp64;
+	case mtk::ozimmu::fp64_int8_6:
+	case mtk::ozimmu::fp64_int8_7:
+	case mtk::ozimmu::fp64_int8_8:
+	case mtk::ozimmu::fp64_int8_9:
+	case mtk::ozimmu::fp64_int8_10:
+	case mtk::ozimmu::fp64_int8_11:
+	case mtk::ozimmu::fp64_int8_12:
+	case mtk::ozimmu::fp64_int8_13:
+	case mtk::ozimmu::fp64_int8_auto:
+	case mtk::ozimmu::dgemm:
+		return mtk::ozimmu::fp64;
 
 	default:
 		break;
 	}
 	OZIMMA_NOT_IMPLEMENTED;
-	return mtk::ozimma::original;
+	return mtk::ozimmu::original;
 }
 
-std::size_t mtk::ozimma::get_data_size_in_byte(
-		const mtk::ozimma::data_t d
+std::size_t mtk::ozimmu::get_data_size_in_byte(
+		const mtk::ozimmu::data_t d
 		) {
 	switch (d) {
-	case mtk::ozimma::fp64:
+	case mtk::ozimmu::fp64:
 		return 8;
-	case mtk::ozimma::fp32:
+	case mtk::ozimmu::fp32:
 		return 4;
-	case mtk::ozimma::fp16:
+	case mtk::ozimmu::fp16:
 		return 2;
-	case mtk::ozimma::original:
+	case mtk::ozimmu::original:
 		return 0;
-	case mtk::ozimma::int8:
+	case mtk::ozimmu::int8:
 		return 1;
 	default:
 		break;
@@ -198,15 +198,15 @@ std::size_t mtk::ozimma::get_data_size_in_byte(
 	return 0;
 }
 
-void mtk::ozimma::enable_profiling(mtk::ozimma::handle_t handle) {
+void mtk::ozimmu::enable_profiling(mtk::ozimmu::handle_t handle) {
 	handle->profiler.enable_measurement();
 }
 
-void mtk::ozimma::disable_profiling(mtk::ozimma::handle_t handle) {
+void mtk::ozimmu::disable_profiling(mtk::ozimmu::handle_t handle) {
 	handle->profiler.disable_measurement();
 }
 
-void mtk::ozimma::print_profiler_result(mtk::ozimma::handle_t handle, const std::string tag, const bool csv) {
+void mtk::ozimmu::print_profiler_result(mtk::ozimmu::handle_t handle, const std::string tag, const bool csv) {
 	if (!csv) {
 		handle->profiler.print_result(tag);
 	} else {
@@ -214,14 +214,14 @@ void mtk::ozimma::print_profiler_result(mtk::ozimma::handle_t handle, const std:
 	}
 }
 
-void mtk::ozimma::clear_profiler_result(mtk::ozimma::handle_t handle) {
+void mtk::ozimmu::clear_profiler_result(mtk::ozimmu::handle_t handle) {
 	handle->profiler.clear();
 }
 
-void mtk::ozimma::set_auto_mantissa_loss_threashold(mtk::ozimma::handle_t handle, const double threshold) {
+void mtk::ozimmu::set_auto_mantissa_loss_threashold(mtk::ozimmu::handle_t handle, const double threshold) {
 	handle->avg_mantissa_loss_threshold = threshold;
 }
 
-double get_auto_mantissa_loss_threashold(mtk::ozimma::handle_t handle) {
+double get_auto_mantissa_loss_threashold(mtk::ozimmu::handle_t handle) {
 	return handle->avg_mantissa_loss_threshold;
 }

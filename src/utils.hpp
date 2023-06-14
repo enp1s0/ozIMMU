@@ -6,7 +6,7 @@
 #include <cuComplex.h>
 
 namespace mtk {
-namespace ozimma {
+namespace ozimmu {
 namespace detail {
 inline void print_not_implemented(
 		const std::string file,
@@ -21,7 +21,7 @@ struct real_type {using type = T;};
 template <>
 struct real_type<cuDoubleComplex> {using type = double;};
 } // namespace detail
-} // namespace ozimma
+} // namespace ozimmu
 } // namespace mtk
 
 
@@ -81,4 +81,4 @@ inline void* ozIMMA_get_function_pointer(const std::string library_name, const s
 	return function_ptr;
 }
 
-#define OZIMMA_NOT_IMPLEMENTED mtk::ozimma::detail::print_not_implemented(__FILE__, __LINE__, __func__)
+#define OZIMMA_NOT_IMPLEMENTED mtk::ozimmu::detail::print_not_implemented(__FILE__, __LINE__, __func__)
