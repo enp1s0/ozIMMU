@@ -16,7 +16,7 @@ make -j4
 
 1. Set an environmental variable to hijack the function calls
 ```bash
-export LD_PRELOAD=/path/to/ozIMMU/build/libozimma.so
+export LD_PRELOAD=/path/to/ozIMMU/build/libozimmu.so
 ```
 
 2. Set an environmental variable to choose the compute mode
