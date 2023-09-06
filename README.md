@@ -1,4 +1,4 @@
-# ozIMMU - DGEMM on Integer Tensor Core with Ozaki scheme
+# ozIMMU - DGEMM on Integer Tensor Core via the Ozaki scheme
 
 This library intercepts function calls for cuBLAS DGEMM functions and executes ozIMMU instead
 
@@ -58,6 +58,18 @@ export OZIMMU_MALLOC_ASYNC=1
 
 # Set AUTO mode mantissa loss threshold
 export OZIMMU_AUTO_AVG_MANTISSA_LOSS_THRESHOLD=1.5
+```
+
+## Citation
+```bibtex
+@misc{ootomo2023dgemm,
+      title={DGEMM on Integer Matrix Multiplication Unit},
+      author={Hiroyuki Ootomo and Katsuhisa Ozaki and Rio Yokota},
+      year={2023},
+      eprint={2306.11975},
+      archivePrefix={arXiv},
+      primaryClass={cs.DC}
+}
 ```
 
 ## License
