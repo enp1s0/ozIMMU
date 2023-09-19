@@ -7,7 +7,7 @@ int mtk::ozimmu::create(
 		mtk::ozimmu::handle_t *h,
 		mtk::ozimmu::malloc_mode_t mm
 		) {
-	ozIMMA_log("Initializing ozIMMA handle");
+	ozIMMU_log("Initializing ozIMMU handle");
 	auto handle = (*h = new mtk::ozimmu::handle);
 	// Initialize cuBLAS handler
 	CUTF_CHECK_ERROR(cublasCreate_org(&(handle->cublas_handle)));
@@ -29,7 +29,7 @@ int mtk::ozimmu::destroy(
 		mtk::ozimmu::handle_t handle
 		) {
 	if (handle) {
-		ozIMMA_log("Destroying ozIMMA handle");
+		ozIMMU_log("Destroying ozIMMU handle");
 		// Destroy cuBLAS handler
 		CUTF_CHECK_ERROR(cublasDestroy_org(handle->cublas_handle));
 
@@ -97,7 +97,7 @@ std::size_t mtk::ozimmu::reallocate_working_memory(
 	if (max_working_memory_size > handle->current_working_memory_size) {
 		handle->current_working_memory_size = max_working_memory_size;
 
-		ozIMMA_log("Reallocated moery : " + std::to_string(max_working_memory_size) + " B");
+		ozIMMU_log("Reallocated moery : " + std::to_string(max_working_memory_size) + " B");
 
 		if (handle->working_memory_ptr != nullptr) {
 			if (handle->malloc_mode == mtk::ozimmu::malloc_sync) {
@@ -148,7 +148,7 @@ std::string mtk::ozimmu::get_compute_mode_name_str(
 	default:
 		break;
 	}
-	OZIMMA_NOT_IMPLEMENTED;
+	OZIMMU_NOT_IMPLEMENTED;
 	return "";
 }
 
@@ -174,7 +174,7 @@ mtk::ozimmu::data_t mtk::ozimmu::get_output_type(
 	default:
 		break;
 	}
-	OZIMMA_NOT_IMPLEMENTED;
+	OZIMMU_NOT_IMPLEMENTED;
 	return mtk::ozimmu::original;
 }
 
