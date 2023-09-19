@@ -8,7 +8,7 @@
 
 const std::string CULIP_RESULT_PREFIX = "CULiP Result";
 const std::string CULIP_EXP_STATS_PREFIX = "CULiP ExpStats";
-const std::string CUMPSGEMM_ENABLE_CULIP_PROFILING_ENV_NAME = "OZIMMA_ENABLE_CULIP_PROFILING";
+const std::string CUMPSGEMM_ENABLE_CULIP_PROFILING_ENV_NAME = "OZIMMU_ENABLE_CULIP_PROFILING";
 
 void mtk::ozimmu::CULiP::record_timestamp(void *tm_timestamp) {
 	struct timespec *tm_ptr = (struct timespec *)tm_timestamp;

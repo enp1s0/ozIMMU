@@ -19,7 +19,7 @@ mtk::ozimmu::compute_mode_t get_compute_mode(
 		const std::size_t n,
 		const std::size_t k
 		) {
-	const char* env_name = "OZIMMA_COMPUTE_MODE";
+	const char* env_name = "OZIMMU_COMPUTE_MODE";
 	const char* env_val = getenv(env_name);
 
 	std::vector<mtk::ozimmu::compute_mode_t> supported_gemm_mode = {
@@ -65,16 +65,16 @@ mtk::ozimmu::handle_t& get_global_ozimmu_handle() {
 	if (global_ozimmu_handle == nullptr) {
 		mtk::ozimmu::malloc_mode_t malloc_mode = mtk::ozimmu::malloc_sync;
 		ozTCECGEMM_run_if_env_defined(
-				"OZIMMA_MALLOC_ASYNC",
+				"OZIMMU_MALLOC_ASYNC",
 				[&](){malloc_mode = mtk::ozimmu::malloc_async;}
 				);
-		ozIMMA_log("Initializing ozIMMA handle...");
+		ozIMMU_log("Initializing ozIMMU handle...");
 		global_ozimmu_handle = new mtk::ozimmu::handle_t;
 		mtk::ozimmu::create(global_ozimmu_handle, malloc_mode);
-		ozIMMA_log("Successfully initialized");
+		ozIMMU_log("Successfully initialized");
 	}
 
-	const auto threshold_env = "OZIMMA_AUTO_AVG_MANTISSA_LOSS_THRESHOLD";
+	const auto threshold_env = "OZIMMU_AUTO_AVG_MANTISSA_LOSS_THRESHOLD";
 	const auto threshold_env_ptr = getenv(threshold_env);
 	if (threshold_env_ptr != nullptr) {
 		try {
@@ -93,7 +93,7 @@ cublasStatus_t mtk::ozimmu::cublasCreate_org(
 		cublasHandle_t* handle_ptr
 		) {
 	cublasStatus_t (*func_ptr)(cublasHandle_t*);
-	*(void**)(&func_ptr)	= ozIMMA_get_function_pointer(cublas_library_name, "cublasCreate_v2");
+	*(void**)(&func_ptr)	= ozIMMU_get_function_pointer(cublas_library_name, "cublasCreate_v2");
 	return (*func_ptr)(handle_ptr);
 }
 
@@ -101,7 +101,7 @@ cublasStatus_t mtk::ozimmu::cublasDestroy_org(
 		cublasHandle_t cublas_handle
 		) {
 	cublasStatus_t (*func_ptr)(cublasHandle_t);
-	*(void**)(&func_ptr)	= ozIMMA_get_function_pointer(cublas_library_name, "cublasDestroy_v2");
+	*(void**)(&func_ptr)	= ozIMMU_get_function_pointer(cublas_library_name, "cublasDestroy_v2");
 	return (*func_ptr)(cublas_handle);
 }
 
@@ -127,7 +127,7 @@ CUBLASAPI cublasStatus_t CUBLASWINAPI cublasDestroy_v2 (cublasHandle_t handle) {
 	return CUBLAS_STATUS_NOT_SUPPORTED;
 #else
 	if (global_ozimmu_handle != nullptr) {
-		ozIMMA_log("Destroying ozIMMA handle...");
+		ozIMMU_log("Destroying ozIMMU handle...");
 		mtk::ozimmu::destroy(
 				get_global_ozimmu_handle()
 				);
@@ -222,7 +222,7 @@ CUBLASAPI cublasStatus_t cublasGemmEx(cublasHandle_t handle, cublasOperation_t t
 	const auto profiling_flag = mtk::ozimmu::CULiP::is_profiling_enabled();
 
 	cublasStatus_t (*func_ptr)(cublasHandle_t, cublasOperation_t, cublasOperation_t, int, int, int, const void*, const void*, cudaDataType_t, int, const void*, cudaDataType_t, int, const void*, void*, cudaDataType_t, int, cublasComputeType_t, cublasGemmAlgo_t);
-	*(void**)(&func_ptr) = ozIMMA_get_function_pointer(
+	*(void**)(&func_ptr) = ozIMMU_get_function_pointer(
 			cublas_library_name.c_str(),
 			__func__
 			);
@@ -400,7 +400,7 @@ CUBLASAPI cublasStatus_t cublasGemmStridedBatchedEx(cublasHandle_t handle, cubla
 	const auto profiling_flag = mtk::ozimmu::CULiP::is_profiling_enabled();
 
 	cublasStatus_t (*func_ptr)(cublasHandle_t, cublasOperation_t, cublasOperation_t, int, int, int, const void*, const void*, cudaDataType_t, int, long long int, const void*, cudaDataType_t, int, long long int, const void*, void*, cudaDataType_t, int, long long int, int, cublasComputeType_t, cublasGemmAlgo_t);
-	*(void**)(&func_ptr) = ozIMMA_get_function_pointer(
+	*(void**)(&func_ptr) = ozIMMU_get_function_pointer(
 			cublas_library_name.c_str(),
 			__func__
 			);

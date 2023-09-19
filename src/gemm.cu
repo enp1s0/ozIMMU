@@ -23,7 +23,7 @@ std::size_t split_core(
 	if (num_split <= 1) {
 		// Do nothing
 	} else {
-		OZIMMA_NOT_IMPLEMENTED;
+		OZIMMU_NOT_IMPLEMENTED;
 	}
 
 	return offset;
@@ -86,7 +86,7 @@ cudaDataType_t to_cudaDataType_t(
 	default:
 		break;
 	}
-	OZIMMA_NOT_IMPLEMENTED;
+	OZIMMU_NOT_IMPLEMENTED;
 	return CUDA_R_32F;
 }
 
@@ -101,7 +101,7 @@ cublasOperation_t to_cublasOperation_t(
 	default:
 		break;
 	}
-	OZIMMA_NOT_IMPLEMENTED;
+	OZIMMU_NOT_IMPLEMENTED;
 	return CUBLAS_OP_N;
 }
 
@@ -342,7 +342,7 @@ cublasStatus_t cublasGemmEx_org(cublasHandle_t handle, cublasOperation_t transa,
 	const std::string cublas_library_name = "libcublas.so";
 	const std::string cublas_function_name = "cublasGemmEx";
 	cublasStatus_t (*func_ptr)(cublasHandle_t, cublasOperation_t, cublasOperation_t, int, int, int, const void*, const void*, cudaDataType_t, int, const void*, cudaDataType_t, int, const void*, void*, cudaDataType_t, int, cublasComputeType_t, cublasGemmAlgo_t);
-	*(void**)(&func_ptr) = ozIMMA_get_function_pointer(
+	*(void**)(&func_ptr) = ozIMMU_get_function_pointer(
 			cublas_library_name.c_str(),
 			cublas_function_name.c_str()
 			);
@@ -475,7 +475,7 @@ void gemm_core(
 		}
 		break;
 	default:
-		OZIMMA_NOT_IMPLEMENTED;
+		OZIMMU_NOT_IMPLEMENTED;
 	}
 	handle->profiler.stop_timer_sync(profile_label);
 }
@@ -743,7 +743,7 @@ int mtk::ozimmu::gemm(
 		input_type = mtk::ozimmu::fp64;
 		break;
 	default:
-		OZIMMA_NOT_IMPLEMENTED;
+		OZIMMU_NOT_IMPLEMENTED;
 	}
 
 	gemm_list_t gemm_list = {
@@ -780,7 +780,7 @@ int mtk::ozimmu::gemm(
 						element_kind,
 						handle->avg_mantissa_loss_threshold
 					);
-			ozIMMA_log("AUTO selected mode = " + mtk::ozimmu::get_compute_mode_name_str(auto_mode) + ", threshold average mantissa loss = " + std::to_string(handle->avg_mantissa_loss_threshold));
+			ozIMMU_log("AUTO selected mode = " + mtk::ozimmu::get_compute_mode_name_str(auto_mode) + ", threshold average mantissa loss = " + std::to_string(handle->avg_mantissa_loss_threshold));
 			return mtk::ozimmu::gemm(
 					handle,
 					op_A, op_B,
@@ -809,10 +809,10 @@ int mtk::ozimmu::gemm(
 						CUBLAS_GEMM_DEFAULT
 						);
 		} else {
-			OZIMMA_NOT_IMPLEMENTED;
+			OZIMMU_NOT_IMPLEMENTED;
 		}
 	} else {
-		OZIMMA_NOT_IMPLEMENTED;
+		OZIMMU_NOT_IMPLEMENTED;
 	}
 	return 0;
 }
