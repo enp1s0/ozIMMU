@@ -1,4 +1,4 @@
-# ozIMMU - DGEMM on Integer Tensor Core via the Ozaki scheme
+# ozIMMU - DGEMM on Int8 Tensor Core
 
 This library intercepts function calls for cuBLAS DGEMM functions and executes ozIMMU instead
 
