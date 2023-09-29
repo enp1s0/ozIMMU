@@ -438,8 +438,8 @@ std::unordered_map<mtk::ozimmu::compute_mode_t, std::uint64_t> mtk::ozimmu::get_
 			m, n,
 			in_ptr,
 			ld,
-			6,
-			13,
+			3,
+			18,
 			bits_per_int8,
 			is_col_major
 			);
@@ -449,14 +449,22 @@ std::unordered_map<mtk::ozimmu::compute_mode_t, std::uint64_t> mtk::ozimmu::get_
 		unsigned long long int host_buffer[mtk::ozimmu::handle::mantissa_loss_counter_length];
 		CUTF_CHECK_ERROR(cudaMemcpy(host_buffer, handle.d_mantissa_loss_counter_ptr, sizeof(unsigned long long int) * mtk::ozimmu::handle::mantissa_loss_counter_length, cudaMemcpyDefault));
 
-		result.insert(std::make_pair<mtk::ozimmu::compute_mode_t, std::uint64_t>(mtk::ozimmu::fp64_int8_6 , host_buffer[0]));
-		result.insert(std::make_pair<mtk::ozimmu::compute_mode_t, std::uint64_t>(mtk::ozimmu::fp64_int8_7 , host_buffer[1]));
-		result.insert(std::make_pair<mtk::ozimmu::compute_mode_t, std::uint64_t>(mtk::ozimmu::fp64_int8_8 , host_buffer[2]));
-		result.insert(std::make_pair<mtk::ozimmu::compute_mode_t, std::uint64_t>(mtk::ozimmu::fp64_int8_9 , host_buffer[3]));
-		result.insert(std::make_pair<mtk::ozimmu::compute_mode_t, std::uint64_t>(mtk::ozimmu::fp64_int8_10, host_buffer[4]));
-		result.insert(std::make_pair<mtk::ozimmu::compute_mode_t, std::uint64_t>(mtk::ozimmu::fp64_int8_11, host_buffer[5]));
-		result.insert(std::make_pair<mtk::ozimmu::compute_mode_t, std::uint64_t>(mtk::ozimmu::fp64_int8_12, host_buffer[6]));
-		result.insert(std::make_pair<mtk::ozimmu::compute_mode_t, std::uint64_t>(mtk::ozimmu::fp64_int8_13, host_buffer[7]));
+		result.insert(std::make_pair<mtk::ozimmu::compute_mode_t, std::uint64_t>(mtk::ozimmu::fp64_int8_3 , host_buffer[ 0]));
+		result.insert(std::make_pair<mtk::ozimmu::compute_mode_t, std::uint64_t>(mtk::ozimmu::fp64_int8_4 , host_buffer[ 1]));
+		result.insert(std::make_pair<mtk::ozimmu::compute_mode_t, std::uint64_t>(mtk::ozimmu::fp64_int8_5 , host_buffer[ 2]));
+		result.insert(std::make_pair<mtk::ozimmu::compute_mode_t, std::uint64_t>(mtk::ozimmu::fp64_int8_6 , host_buffer[ 3]));
+		result.insert(std::make_pair<mtk::ozimmu::compute_mode_t, std::uint64_t>(mtk::ozimmu::fp64_int8_7 , host_buffer[ 4]));
+		result.insert(std::make_pair<mtk::ozimmu::compute_mode_t, std::uint64_t>(mtk::ozimmu::fp64_int8_8 , host_buffer[ 5]));
+		result.insert(std::make_pair<mtk::ozimmu::compute_mode_t, std::uint64_t>(mtk::ozimmu::fp64_int8_9 , host_buffer[ 6]));
+		result.insert(std::make_pair<mtk::ozimmu::compute_mode_t, std::uint64_t>(mtk::ozimmu::fp64_int8_10, host_buffer[ 7]));
+		result.insert(std::make_pair<mtk::ozimmu::compute_mode_t, std::uint64_t>(mtk::ozimmu::fp64_int8_11, host_buffer[ 8]));
+		result.insert(std::make_pair<mtk::ozimmu::compute_mode_t, std::uint64_t>(mtk::ozimmu::fp64_int8_12, host_buffer[ 9]));
+		result.insert(std::make_pair<mtk::ozimmu::compute_mode_t, std::uint64_t>(mtk::ozimmu::fp64_int8_13, host_buffer[10]));
+		result.insert(std::make_pair<mtk::ozimmu::compute_mode_t, std::uint64_t>(mtk::ozimmu::fp64_int8_14, host_buffer[11]));
+		result.insert(std::make_pair<mtk::ozimmu::compute_mode_t, std::uint64_t>(mtk::ozimmu::fp64_int8_15, host_buffer[12]));
+		result.insert(std::make_pair<mtk::ozimmu::compute_mode_t, std::uint64_t>(mtk::ozimmu::fp64_int8_16, host_buffer[13]));
+		result.insert(std::make_pair<mtk::ozimmu::compute_mode_t, std::uint64_t>(mtk::ozimmu::fp64_int8_17, host_buffer[14]));
+		result.insert(std::make_pair<mtk::ozimmu::compute_mode_t, std::uint64_t>(mtk::ozimmu::fp64_int8_18, host_buffer[15]));
 	}
 
 	return result;
@@ -504,6 +512,9 @@ mtk::ozimmu::compute_mode_t auto_mode_select_core(
 			);
 
 	const std::vector<mtk::ozimmu::compute_mode_t> mode_candidate_order = {
+		mtk::ozimmu::fp64_int8_3,
+		mtk::ozimmu::fp64_int8_4,
+		mtk::ozimmu::fp64_int8_5,
 		mtk::ozimmu::fp64_int8_6,
 		mtk::ozimmu::fp64_int8_7,
 		mtk::ozimmu::fp64_int8_8,
@@ -512,6 +523,11 @@ mtk::ozimmu::compute_mode_t auto_mode_select_core(
 		mtk::ozimmu::fp64_int8_11,
 		mtk::ozimmu::fp64_int8_12,
 		mtk::ozimmu::fp64_int8_13,
+		mtk::ozimmu::fp64_int8_14,
+		mtk::ozimmu::fp64_int8_15,
+		mtk::ozimmu::fp64_int8_16,
+		mtk::ozimmu::fp64_int8_17,
+		mtk::ozimmu::fp64_int8_18,
 	};
 
 	for (const auto mode : mode_candidate_order) {

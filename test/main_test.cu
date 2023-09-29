@@ -624,6 +624,9 @@ std::vector<mtk::ozimmu::compute_mode_t> get_supported_compute_mode() {
 	return std::vector<mtk::ozimmu::compute_mode_t>{
 		mtk::ozimmu::sgemm,
 		mtk::ozimmu::dgemm,
+		mtk::ozimmu::fp64_int8_3,
+		mtk::ozimmu::fp64_int8_4,
+		mtk::ozimmu::fp64_int8_5,
 		mtk::ozimmu::fp64_int8_6,
 		mtk::ozimmu::fp64_int8_7,
 		mtk::ozimmu::fp64_int8_8,
@@ -632,6 +635,11 @@ std::vector<mtk::ozimmu::compute_mode_t> get_supported_compute_mode() {
 		mtk::ozimmu::fp64_int8_11,
 		mtk::ozimmu::fp64_int8_12,
 		mtk::ozimmu::fp64_int8_13,
+		mtk::ozimmu::fp64_int8_14,
+		mtk::ozimmu::fp64_int8_15,
+		mtk::ozimmu::fp64_int8_16,
+		mtk::ozimmu::fp64_int8_17,
+		mtk::ozimmu::fp64_int8_18,
 		mtk::ozimmu::fp64_int8_auto,
 	};
 }

@@ -31,6 +31,9 @@ The supported compute modes are [here](#supported-compute-mode).
 | Mode          | Tensor Core type | Num splits |                         |
 |:--------------|:-----------------|:-----------|:------------------------|
 |dgemm          | --               | --         | Disable hijacking       |
+|fp64_int8_3    | Int8 TC          | 3          |                         |
+|fp64_int8_4    | Int8 TC          | 4          |                         |
+|fp64_int8_5    | Int8 TC          | 5          |                         |
 |fp64_int8_6    | Int8 TC          | 6          |                         |
 |fp64_int8_7    | Int8 TC          | 7          |                         |
 |fp64_int8_8    | Int8 TC          | 8          |                         |
@@ -39,7 +42,12 @@ The supported compute modes are [here](#supported-compute-mode).
 |fp64_int8_11   | Int8 TC          | 11         |                         |
 |fp64_int8_12   | Int8 TC          | 12         |                         |
 |fp64_int8_13   | Int8 TC          | 13         |                         |
-|fp64_int8_auto | Int8 TC          | AUTO       | fp64_int8_6..13 / dgemm |
+|fp64_int8_14   | Int8 TC          | 14         |                         |
+|fp64_int8_15   | Int8 TC          | 15         |                         |
+|fp64_int8_16   | Int8 TC          | 16         |                         |
+|fp64_int8_17   | Int8 TC          | 17         |                         |
+|fp64_int8_18   | Int8 TC          | 18         |                         |
+|fp64_int8_auto | Int8 TC          | AUTO       | fp64_int8_3..18 / dgemm |
 
 
 ### Optional environmental variables

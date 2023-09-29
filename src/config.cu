@@ -17,6 +17,9 @@ mtk::ozimmu::detail::split_config_t mtk::ozimmu::detail::get_split_config(
 			{original},
 			{{0, 0, detail::cublas_dgemm}}
 		};
+	case mtk::ozimmu::fp64_int8_3:
+	case mtk::ozimmu::fp64_int8_4:
+	case mtk::ozimmu::fp64_int8_5:
 	case mtk::ozimmu::fp64_int8_6:
 	case mtk::ozimmu::fp64_int8_7:
 	case mtk::ozimmu::fp64_int8_8:
@@ -25,8 +28,16 @@ mtk::ozimmu::detail::split_config_t mtk::ozimmu::detail::get_split_config(
 	case mtk::ozimmu::fp64_int8_11:
 	case mtk::ozimmu::fp64_int8_12:
 	case mtk::ozimmu::fp64_int8_13:
+	case mtk::ozimmu::fp64_int8_14:
+	case mtk::ozimmu::fp64_int8_15:
+	case mtk::ozimmu::fp64_int8_16:
+	case mtk::ozimmu::fp64_int8_17:
+	case mtk::ozimmu::fp64_int8_18:
 		{
 			unsigned num_split = 0;
+			if (compute_mode == mtk::ozimmu::fp64_int8_3 ) {num_split = 3;}
+			if (compute_mode == mtk::ozimmu::fp64_int8_4 ) {num_split = 4;}
+			if (compute_mode == mtk::ozimmu::fp64_int8_5 ) {num_split = 5;}
 			if (compute_mode == mtk::ozimmu::fp64_int8_6 ) {num_split = 6;}
 			if (compute_mode == mtk::ozimmu::fp64_int8_7 ) {num_split = 7;}
 			if (compute_mode == mtk::ozimmu::fp64_int8_8 ) {num_split = 8;}
@@ -35,6 +46,11 @@ mtk::ozimmu::detail::split_config_t mtk::ozimmu::detail::get_split_config(
 			if (compute_mode == mtk::ozimmu::fp64_int8_11) {num_split = 11;}
 			if (compute_mode == mtk::ozimmu::fp64_int8_12) {num_split = 12;}
 			if (compute_mode == mtk::ozimmu::fp64_int8_13) {num_split = 13;}
+			if (compute_mode == mtk::ozimmu::fp64_int8_13) {num_split = 14;}
+			if (compute_mode == mtk::ozimmu::fp64_int8_13) {num_split = 15;}
+			if (compute_mode == mtk::ozimmu::fp64_int8_13) {num_split = 16;}
+			if (compute_mode == mtk::ozimmu::fp64_int8_13) {num_split = 17;}
+			if (compute_mode == mtk::ozimmu::fp64_int8_13) {num_split = 18;}
 
 			// Data
 			std::vector<mtk::ozimmu::data_t> split_types(num_split + 1);
