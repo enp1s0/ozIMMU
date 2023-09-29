@@ -17,6 +17,9 @@ enum compute_mode_t {
 	sgemm,
 	dgemm,
 
+	fp64_int8_3,
+	fp64_int8_4,
+	fp64_int8_5,
 	fp64_int8_6,
 	fp64_int8_7,
 	fp64_int8_8,
@@ -25,6 +28,11 @@ enum compute_mode_t {
 	fp64_int8_11,
 	fp64_int8_12,
 	fp64_int8_13,
+	fp64_int8_14,
+	fp64_int8_15,
+	fp64_int8_16,
+	fp64_int8_17,
+	fp64_int8_18,
 
 	fp64_int8_auto,
 };

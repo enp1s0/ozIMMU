@@ -76,6 +76,9 @@ std::size_t mtk::ozimmu::reallocate_working_memory(
 		const auto working_memory_C_fp64 = m * n * mtk::ozimmu::get_data_size_in_byte(fp64) * (element_kind == mtk::ozimmu::real ? 1 : 2);
 		std::size_t etc = 0;
 		if (
+				mode == mtk::ozimmu::fp64_int8_3  ||
+				mode == mtk::ozimmu::fp64_int8_4  ||
+				mode == mtk::ozimmu::fp64_int8_5  ||
 				mode == mtk::ozimmu::fp64_int8_6  ||
 				mode == mtk::ozimmu::fp64_int8_7  ||
 				mode == mtk::ozimmu::fp64_int8_8  ||
@@ -83,7 +86,12 @@ std::size_t mtk::ozimmu::reallocate_working_memory(
 				mode == mtk::ozimmu::fp64_int8_10 ||
 				mode == mtk::ozimmu::fp64_int8_11 ||
 				mode == mtk::ozimmu::fp64_int8_12 ||
-				mode == mtk::ozimmu::fp64_int8_13
+				mode == mtk::ozimmu::fp64_int8_13 ||
+				mode == mtk::ozimmu::fp64_int8_14 ||
+				mode == mtk::ozimmu::fp64_int8_15 ||
+				mode == mtk::ozimmu::fp64_int8_16 ||
+				mode == mtk::ozimmu::fp64_int8_17 ||
+				mode == mtk::ozimmu::fp64_int8_18
 			 ) {
 			etc = (m + n) * mtk::ozimmu::get_data_size_in_byte(fp64) * (element_kind == mtk::ozimmu::real ? 1 : 2);
 		}
@@ -127,6 +135,12 @@ std::string mtk::ozimmu::get_compute_mode_name_str(
 		return "sgemm";
 	case mtk::ozimmu::dgemm:
 		return "dgemm";
+	case mtk::ozimmu::fp64_int8_3:
+		return "fp64_int8_3";
+	case mtk::ozimmu::fp64_int8_4:
+		return "fp64_int8_4";
+	case mtk::ozimmu::fp64_int8_5:
+		return "fp64_int8_5";
 	case mtk::ozimmu::fp64_int8_6:
 		return "fp64_int8_6";
 	case mtk::ozimmu::fp64_int8_7:
@@ -143,6 +157,16 @@ std::string mtk::ozimmu::get_compute_mode_name_str(
 		return "fp64_int8_12";
 	case mtk::ozimmu::fp64_int8_13:
 		return "fp64_int8_13";
+	case mtk::ozimmu::fp64_int8_14:
+		return "fp64_int8_14";
+	case mtk::ozimmu::fp64_int8_15:
+		return "fp64_int8_15";
+	case mtk::ozimmu::fp64_int8_16:
+		return "fp64_int8_16";
+	case mtk::ozimmu::fp64_int8_17:
+		return "fp64_int8_17";
+	case mtk::ozimmu::fp64_int8_18:
+		return "fp64_int8_18";
 	case mtk::ozimmu::fp64_int8_auto:
 		return "fp64_int8_auto";
 	default:
@@ -159,6 +183,9 @@ mtk::ozimmu::data_t mtk::ozimmu::get_output_type(
 	case mtk::ozimmu::sgemm:
 		return mtk::ozimmu::fp32;
 
+	case mtk::ozimmu::fp64_int8_4:
+	case mtk::ozimmu::fp64_int8_3:
+	case mtk::ozimmu::fp64_int8_5:
 	case mtk::ozimmu::fp64_int8_6:
 	case mtk::ozimmu::fp64_int8_7:
 	case mtk::ozimmu::fp64_int8_8:
@@ -167,6 +194,11 @@ mtk::ozimmu::data_t mtk::ozimmu::get_output_type(
 	case mtk::ozimmu::fp64_int8_11:
 	case mtk::ozimmu::fp64_int8_12:
 	case mtk::ozimmu::fp64_int8_13:
+	case mtk::ozimmu::fp64_int8_14:
+	case mtk::ozimmu::fp64_int8_15:
+	case mtk::ozimmu::fp64_int8_16:
+	case mtk::ozimmu::fp64_int8_17:
+	case mtk::ozimmu::fp64_int8_18:
 	case mtk::ozimmu::fp64_int8_auto:
 	case mtk::ozimmu::dgemm:
 		return mtk::ozimmu::fp64;

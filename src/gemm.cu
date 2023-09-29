@@ -731,6 +731,9 @@ int mtk::ozimmu::gemm(
 		input_type = mtk::ozimmu::fp32;
 		break;
 	case mtk::ozimmu::dgemm:
+	case mtk::ozimmu::fp64_int8_3:
+	case mtk::ozimmu::fp64_int8_4:
+	case mtk::ozimmu::fp64_int8_5:
 	case mtk::ozimmu::fp64_int8_6:
 	case mtk::ozimmu::fp64_int8_7:
 	case mtk::ozimmu::fp64_int8_8:
@@ -739,6 +742,11 @@ int mtk::ozimmu::gemm(
 	case mtk::ozimmu::fp64_int8_11:
 	case mtk::ozimmu::fp64_int8_12:
 	case mtk::ozimmu::fp64_int8_13:
+	case mtk::ozimmu::fp64_int8_14:
+	case mtk::ozimmu::fp64_int8_15:
+	case mtk::ozimmu::fp64_int8_16:
+	case mtk::ozimmu::fp64_int8_17:
+	case mtk::ozimmu::fp64_int8_18:
 	case mtk::ozimmu::fp64_int8_auto:
 		input_type = mtk::ozimmu::fp64;
 		break;
@@ -753,6 +761,9 @@ int mtk::ozimmu::gemm(
 
 	if (input_type == mtk::ozimmu::fp64) {
 		if (
+				compute_mode == mtk::ozimmu::fp64_int8_3  ||
+				compute_mode == mtk::ozimmu::fp64_int8_4  ||
+				compute_mode == mtk::ozimmu::fp64_int8_5  ||
 				compute_mode == mtk::ozimmu::fp64_int8_6  ||
 				compute_mode == mtk::ozimmu::fp64_int8_7  ||
 				compute_mode == mtk::ozimmu::fp64_int8_8  ||
@@ -760,7 +771,12 @@ int mtk::ozimmu::gemm(
 				compute_mode == mtk::ozimmu::fp64_int8_10 ||
 				compute_mode == mtk::ozimmu::fp64_int8_11 ||
 				compute_mode == mtk::ozimmu::fp64_int8_12 ||
-				compute_mode == mtk::ozimmu::fp64_int8_13
+				compute_mode == mtk::ozimmu::fp64_int8_13 ||
+				compute_mode == mtk::ozimmu::fp64_int8_14 ||
+				compute_mode == mtk::ozimmu::fp64_int8_15 ||
+				compute_mode == mtk::ozimmu::fp64_int8_16 ||
+				compute_mode == mtk::ozimmu::fp64_int8_17 ||
+				compute_mode == mtk::ozimmu::fp64_int8_18
 				) {
 			if (element_kind == mtk::ozimmu::real) {
 				using T = double;
