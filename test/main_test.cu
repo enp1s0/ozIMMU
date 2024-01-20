@@ -8,7 +8,7 @@
 #include <cutf/curand_kernel.hpp>
 #include <cutf/device.hpp>
 #include <cutf/math.hpp>
-#include <mateval/comparison_cuda.hpp>
+#include <mateval/cuda/comparison.hpp>
 #include <matfile/matfile.hpp>
 #include <gpu_monitor/gpu_monitor.hpp>
 
