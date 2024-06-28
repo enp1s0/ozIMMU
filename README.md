@@ -70,13 +70,13 @@ export OZIMMU_AUTO_AVG_MANTISSA_LOSS_THRESHOLD=1.5
 
 ## Citation
 ```bibtex
-@misc{ootomo2023dgemm,
-      title={DGEMM on Integer Matrix Multiplication Unit},
-      author={Hiroyuki Ootomo and Katsuhisa Ozaki and Rio Yokota},
-      year={2023},
-      eprint={2306.11975},
-      archivePrefix={arXiv},
-      primaryClass={cs.DC}
+@article{ootomo2024dgemm,
+    author = {Hiroyuki Ootomo and Katsuhisa Ozaki and Rio Yokota},
+    title = {DGEMM on integer matrix multiplication unit},
+    journal = {The International Journal of High Performance Computing Applications},
+    year = {2024},
+    doi = {10.1177/10943420241239588},
+    URL = {https://doi.org/10.1177/10943420241239588}
 }
 ```
 
