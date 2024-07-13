@@ -561,7 +561,7 @@ int gemm_int8<double>(
 				c_f64_ptr,
 				c_i32_ptr,
 				m * n,
-				bits_per_int8 * (gemm_pair_config.A_id + gemm_pair_config.B_id - 2) - (7 - bits_per_int8) * 2, // The `(7 - bits_per_int8) * 2` term is required because the mantissa `bits_per_int8` bits are stored in the low `bits_per_int8` bits of an int8.
+				bits_per_int8 * (gemm_pair_config.A_id + gemm_pair_config.B_id - 2) - (7 /*bitlen(int8)-1*/ - bits_per_int8) * 2, // The `(7 - bits_per_int8) * 2` term is required because the mantissa `bits_per_int8` bits are stored in the low `bits_per_int8` bits of an int8.
 				handle->cuda_stream
 				);
 		handle->profiler.stop_timer_sync("accumulate_in_f64");
@@ -675,7 +675,7 @@ int gemm_int8<cuDoubleComplex>(
 					tmp_f64_ptr,
 					c_i32_ptr,
 					m * n,
-					bits_per_int8 * (gemm_pair_config.A_id + gemm_pair_config.B_id - 2) - (7 - bits_per_int8) * 2, // The `(7 - bits_per_int8) * 2` term is required because the mantissa `bits_per_int8` bits are stored in the low `bits_per_int8` bits of an int8.
+					bits_per_int8 * (gemm_pair_config.A_id + gemm_pair_config.B_id - 2) - (7 /*bitlen(int8)-1*/ - bits_per_int8) * 2, // The `(7 - bits_per_int8) * 2` term is required because the mantissa `bits_per_int8` bits are stored in the low `bits_per_int8` bits of an int8.
 					handle->cuda_stream
 					);
 			handle->profiler.stop_timer_sync("accumulate_in_f64");
