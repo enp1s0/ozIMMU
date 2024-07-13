@@ -123,7 +123,7 @@ void accumulate_in_f64(
 		double* const f64_ptr,
 		const std::int32_t* i32_ptr,
 		const std::size_t length,
-		const unsigned mantissa_rshift,
+		const std::int32_t mantissa_rshift,
 		cudaStream_t cuda_stream
 		) {
 	constexpr std::size_t block_size = 256;
@@ -512,7 +512,7 @@ int gemm_int8<double>(
 		const mtk::ozimmu::compute_mode_t compute_mode
 		) {
 	const unsigned num_split = mtk::ozimmu::detail::get_split_config(compute_mode).matrix_A_split_types.size() - 1;
-	const auto bits_per_int8 = std::min<unsigned>(7u, std::ceil((31 - std::log2(k) / 2.)));
+	const int32_t bits_per_int8 = std::min<unsigned>(7u, std::ceil((31 - std::log2(k) / 2.)));
 
 	std::int32_t* const c_i32_ptr = reinterpret_cast<std::int32_t*>(handle->working_memory_ptr);
 	double* const c_f64_ptr = reinterpret_cast<double*>(c_i32_ptr + m * n);
@@ -561,7 +561,7 @@ int gemm_int8<double>(
 				c_f64_ptr,
 				c_i32_ptr,
 				m * n,
-				bits_per_int8 * (gemm_pair_config.A_id + gemm_pair_config.B_id - 2),
+				bits_per_int8 * (gemm_pair_config.A_id + gemm_pair_config.B_id - 2) - (7 - bits_per_int8) * 2, // The `(7 - bits_per_int8) * 2` term is required because the mantissa `bits_per_int8` bits are stored in the low `bits_per_int8` bits of an int8.
 				handle->cuda_stream
 				);
 		handle->profiler.stop_timer_sync("accumulate_in_f64");
@@ -675,7 +675,7 @@ int gemm_int8<cuDoubleComplex>(
 					tmp_f64_ptr,
 					c_i32_ptr,
 					m * n,
-					bits_per_int8 * (gemm_pair_config.A_id + gemm_pair_config.B_id - 2),
+					bits_per_int8 * (gemm_pair_config.A_id + gemm_pair_config.B_id - 2) - (7 - bits_per_int8) * 2, // The `(7 - bits_per_int8) * 2` term is required because the mantissa `bits_per_int8` bits are stored in the low `bits_per_int8` bits of an int8.
 					handle->cuda_stream
 					);
 			handle->profiler.stop_timer_sync("accumulate_in_f64");
