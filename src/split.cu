@@ -488,7 +488,7 @@ mtk::ozimmu::compute_mode_t auto_mode_select_core(
 		const T* const a_ptr, const std::size_t lda,
 		const T* const b_ptr, const std::size_t ldb,
 		const double mantissa_loss_threshold) {
-	const auto bits_per_int8 = std::min<unsigned>(7u, std::ceil((31 - std::log2(k) / 2.)));
+	const auto bits_per_int8 = std::min<unsigned>(7u, std::floor((31 - std::log2(k)) / 2.));
 	mtk::ozimmu::init_mantissa_loss_counter(*handle);
 
 	mtk::ozimmu::get_mantissa_loss_total(
