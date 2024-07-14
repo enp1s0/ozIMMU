@@ -581,7 +581,17 @@ mtk::ozimmu::compute_mode_t mtk::ozimmu::auto_mode_select(
 std::uint32_t mtk::ozimmu::get_bits_per_int8(
     const std::uint32_t k
     ) {
-	std::uint32_t log2_k = 32;
-	while ((1u << (--log2_k)) > k + 1);
-	return std::min<std::uint32_t>(7u, std::floor((31 - log2_k) / 2.));
+	if (k == 0) {
+		return 0;
+	}
+
+	// Calculate ceil(log2(k))
+	std::uint32_t log2_k = 0;
+	while ((1u << (log2_k + 1)) <= k) {log2_k++;}
+	if ((1u << log2_k) != k) {
+		log2_k++;
+	}
+
+	// Return mantissa length
+	return std::min<std::uint32_t>(7, std::floor((31 - log2_k) / 2.));
 }
