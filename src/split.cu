@@ -593,5 +593,5 @@ std::uint32_t mtk::ozimmu::get_bits_per_int8(
 	}
 
 	// Return mantissa length
-	return std::min<std::uint32_t>(7, std::floor((31 - log2_k) / 2.));
+	return std::min<std::uint32_t>(7, (31 - log2_k) / 2);
 }
