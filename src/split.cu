@@ -579,7 +579,7 @@ mtk::ozimmu::compute_mode_t mtk::ozimmu::auto_mode_select(
 }
 
 std::uint32_t mtk::ozimmu::get_bits_per_int8(
-    const std::size_t k
+    const std::uint32_t k
     ) {
 	std::uint32_t log2_k = 32;
 	while ((1u << (--log2_k)) > k + 1);

@@ -117,7 +117,7 @@ std::size_t get_data_size_in_byte(
 		);
 
 std::uint32_t get_bits_per_int8(
-		const std::size_t k
+		const std::uint32_t k
 		);
 } // namespace ozimmu
 } // namespace mtk
