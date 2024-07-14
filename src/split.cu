@@ -3,6 +3,7 @@
 #include <cutf/math.hpp>
 #include <cutf/type.hpp>
 #include <cutf/cuda.hpp>
+#include <ozimmu/ozimmu.hpp>
 #include "config.hpp"
 #include "split.hpp"
 #include "utils.hpp"
@@ -488,7 +489,7 @@ mtk::ozimmu::compute_mode_t auto_mode_select_core(
 		const T* const a_ptr, const std::size_t lda,
 		const T* const b_ptr, const std::size_t ldb,
 		const double mantissa_loss_threshold) {
-	const auto bits_per_int8 = std::min<unsigned>(7u, std::floor((31 - std::log2(k)) / 2.));
+	const auto bits_per_int8 = mtk::ozimmu::get_bits_per_int8(k);
 	mtk::ozimmu::init_mantissa_loss_counter(*handle);
 
 	mtk::ozimmu::get_mantissa_loss_total(
@@ -575,4 +576,12 @@ mtk::ozimmu::compute_mode_t mtk::ozimmu::auto_mode_select(
 				);
 	}
 	return result;
+}
+
+std::uint32_t mtk::ozimmu::get_bits_per_int8(
+    const std::size_t k
+    ) {
+	std::uint32_t log2_k = 32;
+	while ((1u << (--log2_k)) > k + 1);
+	return std::min<std::uint32_t>(7u, std::floor((31 - log2_k) / 2.));
 }

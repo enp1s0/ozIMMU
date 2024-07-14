@@ -512,7 +512,7 @@ int gemm_int8<double>(
 		const mtk::ozimmu::compute_mode_t compute_mode
 		) {
 	const unsigned num_split = mtk::ozimmu::detail::get_split_config(compute_mode).matrix_A_split_types.size() - 1;
-	const int32_t bits_per_int8 = std::min<unsigned>(7u, std::floor((31 - std::log2(k)) / 2.));
+	const int32_t bits_per_int8 = mtk::ozimmu::get_bits_per_int8(k);
 
 	std::int32_t* const c_i32_ptr = reinterpret_cast<std::int32_t*>(handle->working_memory_ptr);
 	double* const c_f64_ptr = reinterpret_cast<double*>(c_i32_ptr + m * n);
@@ -599,7 +599,7 @@ int gemm_int8<cuDoubleComplex>(
 		) {
 	using real_t = double;
 	const unsigned num_split = mtk::ozimmu::detail::get_split_config(compute_mode).matrix_A_split_types.size() - 1;
-	const int32_t bits_per_int8 = std::min<unsigned>(7u, std::floor((31 - std::log2(k)) / 2.));
+	const int32_t bits_per_int8 = mtk::ozimmu::get_bits_per_int8(k);
 	const auto& gemm_pair_config_list = mtk::ozimmu::detail::get_split_config(compute_mode).gemm_pair_config_list;
 
 	std::int32_t* const c_i32_ptr = reinterpret_cast<std::int32_t*>(handle->working_memory_ptr);

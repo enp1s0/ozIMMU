@@ -115,5 +115,9 @@ mtk::ozimmu::data_t get_output_type(
 std::size_t get_data_size_in_byte(
 		const mtk::ozimmu::data_t d
 		);
+
+std::uint32_t get_bits_per_int8(
+		const std::size_t k
+		);
 } // namespace ozimmu
 } // namespace mtk
