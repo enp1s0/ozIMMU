@@ -1,0 +1,7 @@
+precommit:
+  image: python:3.10.2-slim-bullseye
+  before_script:
+    - apt update && apt install -y --no-install-recommends git
+    - pip install pre-commit
+  script:
+    - pre-commit run --all-files

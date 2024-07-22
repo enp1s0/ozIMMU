@@ -105,7 +105,7 @@ std::size_t mtk::ozimmu::reallocate_working_memory(
 	if (max_working_memory_size > handle->current_working_memory_size) {
 		handle->current_working_memory_size = max_working_memory_size;
 
-		ozIMMU_log("Reallocated moery : " + std::to_string(max_working_memory_size) + " B");
+		ozIMMU_log("Reallocated memory : " + std::to_string(max_working_memory_size) + " B");
 
 		if (handle->working_memory_ptr != nullptr) {
 			if (handle->malloc_mode == mtk::ozimmu::malloc_sync) {
