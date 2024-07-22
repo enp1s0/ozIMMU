@@ -680,7 +680,7 @@ int gemm_int8<cuDoubleComplex>(
 					);
 			handle->profiler.stop_timer_sync("accumulate_in_f64");
 		}
-		
+
 		real_t axpy_alpha_real = 0;
 		real_t axpy_alpha_imag = 0;
 		if (p.first == 0 && p.second == 0) {
