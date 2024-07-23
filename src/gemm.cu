@@ -725,33 +725,42 @@ int mtk::ozimmu::gemm(
 		const mtk::ozimmu::compute_mode_t compute_mode,
 		const mtk::ozimmu::element_kind_t element_kind
 		) {
+	// Arguments validation
+	int arg_errors = 0;
+	arg_errors += check_gemm_shape(op_A, m, k, lda, "A");
+	arg_errors += check_gemm_shape(op_B, k, n, ldb, "B");
+	arg_errors += check_gemm_shape(mtk::ozimmu::op_n, m, n, ldc, "C");
+	if (arg_errors) {
+		return 1;
+	}
+
 	mtk::ozimmu::data_t input_type;
 	switch (compute_mode) {
-	case mtk::ozimmu::sgemm:
-		input_type = mtk::ozimmu::fp32;
-		break;
-	case mtk::ozimmu::dgemm:
-	case mtk::ozimmu::fp64_int8_3:
-	case mtk::ozimmu::fp64_int8_4:
-	case mtk::ozimmu::fp64_int8_5:
-	case mtk::ozimmu::fp64_int8_6:
-	case mtk::ozimmu::fp64_int8_7:
-	case mtk::ozimmu::fp64_int8_8:
-	case mtk::ozimmu::fp64_int8_9:
-	case mtk::ozimmu::fp64_int8_10:
-	case mtk::ozimmu::fp64_int8_11:
-	case mtk::ozimmu::fp64_int8_12:
-	case mtk::ozimmu::fp64_int8_13:
-	case mtk::ozimmu::fp64_int8_14:
-	case mtk::ozimmu::fp64_int8_15:
-	case mtk::ozimmu::fp64_int8_16:
-	case mtk::ozimmu::fp64_int8_17:
-	case mtk::ozimmu::fp64_int8_18:
-	case mtk::ozimmu::fp64_int8_auto:
-		input_type = mtk::ozimmu::fp64;
-		break;
-	default:
-		OZIMMU_NOT_IMPLEMENTED;
+		case mtk::ozimmu::sgemm:
+			input_type = mtk::ozimmu::fp32;
+			break;
+		case mtk::ozimmu::dgemm:
+		case mtk::ozimmu::fp64_int8_3:
+		case mtk::ozimmu::fp64_int8_4:
+		case mtk::ozimmu::fp64_int8_5:
+		case mtk::ozimmu::fp64_int8_6:
+		case mtk::ozimmu::fp64_int8_7:
+		case mtk::ozimmu::fp64_int8_8:
+		case mtk::ozimmu::fp64_int8_9:
+		case mtk::ozimmu::fp64_int8_10:
+		case mtk::ozimmu::fp64_int8_11:
+		case mtk::ozimmu::fp64_int8_12:
+		case mtk::ozimmu::fp64_int8_13:
+		case mtk::ozimmu::fp64_int8_14:
+		case mtk::ozimmu::fp64_int8_15:
+		case mtk::ozimmu::fp64_int8_16:
+		case mtk::ozimmu::fp64_int8_17:
+		case mtk::ozimmu::fp64_int8_18:
+		case mtk::ozimmu::fp64_int8_auto:
+			input_type = mtk::ozimmu::fp64;
+			break;
+		default:
+			OZIMMU_NOT_IMPLEMENTED;
 	}
 
 	gemm_list_t gemm_list = {
