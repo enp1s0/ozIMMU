@@ -182,8 +182,9 @@ CUBLASAPI cublasStatus_t cublasGemmEx(cublasHandle_t handle, cublasOperation_t t
 					mtk::ozimmu::CULiP::get_cublasOperation_t_string(transa), mtk::ozimmu::CULiP::get_cublasOperation_t_string(transb), m, n, k);
 			mtk::ozimmu::CULiP::launch_function(cuda_stream, &mtk::ozimmu::CULiP::record_timestamp, (void*)&profile_result.start_timestamp);
 		}
+		int error = 0;
 		if (Atype == CUDA_R_64F) {
-			mtk::ozimmu::gemm(
+			error = mtk::ozimmu::gemm(
 					get_global_ozimmu_handle(),
 					op_cublas2oz(transa),
 					op_cublas2oz(transb),
@@ -197,7 +198,7 @@ CUBLASAPI cublasStatus_t cublasGemmEx(cublasHandle_t handle, cublasOperation_t t
 					mtk::ozimmu::real
 					);
 		} else if (Atype == CUDA_C_64F) {
-			mtk::ozimmu::gemm(
+			error = mtk::ozimmu::gemm(
 					get_global_ozimmu_handle(),
 					op_cublas2oz(transa),
 					op_cublas2oz(transb),
@@ -218,6 +219,9 @@ CUBLASAPI cublasStatus_t cublasGemmEx(cublasHandle_t handle, cublasOperation_t t
 
 			// Print result
 			mtk::ozimmu::CULiP::launch_function(cuda_stream, &mtk::ozimmu::CULiP::print_profile_result, (void*)&profile_result);
+		}
+		if (error) {
+			return CUBLAS_STATUS_INTERNAL_ERROR;
 		}
 
 		return CUBLAS_STATUS_SUCCESS;
@@ -351,16 +355,17 @@ CUBLASAPI cublasStatus_t cublasGemmStridedBatchedEx(cublasHandle_t handle, cubla
 
 		if (profiling_flag) {
 			snprintf(profile_result.function_name, profile_result.function_name_length - 1,
-					"%s%s_stridedBatched-%s%s-m%d-n%d-k%d-batch_count%d",
-					(Atype == CUDA_R_64F ? "D" : "Z"),
-					mtk::ozimmu::get_compute_mode_name_str(compute_mode).c_str(),
-					mtk::ozimmu::CULiP::get_cublasOperation_t_string(transa), mtk::ozimmu::CULiP::get_cublasOperation_t_string(transb), m, n, k, batch_count);
+							 "%s%s_stridedBatched-%s%s-m%d-n%d-k%d-batch_count%d",
+							 (Atype == CUDA_R_64F ? "D" : "Z"),
+							 mtk::ozimmu::get_compute_mode_name_str(compute_mode).c_str(),
+							 mtk::ozimmu::CULiP::get_cublasOperation_t_string(transa), mtk::ozimmu::CULiP::get_cublasOperation_t_string(transb), m, n, k, batch_count);
 			mtk::ozimmu::CULiP::launch_function(cuda_stream, &mtk::ozimmu::CULiP::record_timestamp, (void*)&profile_result.start_timestamp);
 		}
 
+		int error = 0;
 		for (int batch_id = 0; batch_id < batch_count; batch_id++) {
 			if (Atype == CUDA_R_64F) {
-				mtk::ozimmu::gemm(
+				error = mtk::ozimmu::gemm(
 						get_global_ozimmu_handle(),
 						op_cublas2oz(transa),
 						op_cublas2oz(transb),
@@ -374,7 +379,7 @@ CUBLASAPI cublasStatus_t cublasGemmStridedBatchedEx(cublasHandle_t handle, cubla
 						mtk::ozimmu::real
 						);
 			} else if (Atype == CUDA_C_64F) {
-				mtk::ozimmu::gemm(
+				error = mtk::ozimmu::gemm(
 						get_global_ozimmu_handle(),
 						op_cublas2oz(transa),
 						op_cublas2oz(transb),
@@ -388,6 +393,9 @@ CUBLASAPI cublasStatus_t cublasGemmStridedBatchedEx(cublasHandle_t handle, cubla
 						mtk::ozimmu::complx
 						);
 			}
+			if (error) {
+				break;
+			}
 		}
 
 		if (profiling_flag) {
@@ -396,6 +404,10 @@ CUBLASAPI cublasStatus_t cublasGemmStridedBatchedEx(cublasHandle_t handle, cubla
 
 			// Print result
 			mtk::ozimmu::CULiP::launch_function(cuda_stream, &mtk::ozimmu::CULiP::print_profile_result, (void*)&profile_result);
+		}
+
+		if (error) {
+			return CUBLAS_STATUS_INTERNAL_ERROR;
 		}
 
 		return CUBLAS_STATUS_SUCCESS;
