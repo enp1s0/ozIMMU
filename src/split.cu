@@ -3,6 +3,7 @@
 #include <cutf/math.hpp>
 #include <cutf/type.hpp>
 #include <cutf/cuda.hpp>
+#include <cutf/error.hpp>
 #include <ozimmu/ozimmu.hpp>
 #include "config.hpp"
 #include "split.hpp"
@@ -171,7 +172,7 @@ __device__ void cut_int8_core(
 		) {
 	const std::uint8_t sign_flag = a > 0;
 	const auto mantissa = static_cast<MANTISSA_T>(cutf::experimental::fp::mask_mantissa(a) | (1lu << cutf::experimental::fp::get_mantissa_size<INPUT_T>()))
-		<< ((sizeof(MANTISSA_T) - sizeof(INPUT_T)) * 8 + cutf::experimental::fp::get_exponent_size<INPUT_T>());
+			<< ((sizeof(MANTISSA_T) - sizeof(INPUT_T)) * 8 + cutf::experimental::fp::get_exponent_size<INPUT_T>());
 	const auto mantissa_shift_offset = (cutf::experimental::fp::reinterpret_as_uint(max_exp) - cutf::experimental::fp::mask_exponent(a)) >> cutf::experimental::fp::get_mantissa_size<INPUT_T>();
 
 	auto shifted_mantissa = mantissa >> mantissa_shift_offset;
@@ -194,6 +195,7 @@ __device__ double x2(const double a) {
 template <class INPUT_T, class MANTISSA_T>
 __global__ void split_int8_kernel(
 		std::int8_t* const out_ptr,
+		const std::uint32_t ldo,
 		typename mtk::ozimmu::detail::real_type<INPUT_T>::type* const max_exp_ptr,
 		const std::size_t m,
 		const std::size_t n,
@@ -206,22 +208,35 @@ __global__ void split_int8_kernel(
 	__shared__ typename mtk::ozimmu::detail::real_type<INPUT_T>::type smem[32];
 	const auto row_index = blockIdx.x;
 	const auto max_exp = x2(get_exp_max_element(
-			in_ptr + (col_major ? row_index : (row_index * ld)),
-			n,
-			(col_major ? ld : 1),
-			smem
-			));
+					in_ptr + (col_major ? row_index : (row_index * ld)),
+					n,
+					(col_major ? ld : 1),
+					smem
+					));
 
-	const auto N = m * n;
-	for (unsigned i = threadIdx.x; i < n; i += blockDim.x) {
+	const auto N = m * ldo;
+	unsigned i;
+	for (i = threadIdx.x; i < n; i += blockDim.x) {
 		const auto a = in_ptr[(col_major ? (i * ld + row_index) : (i + row_index * ld))];
 		if constexpr (std::is_same<cuDoubleComplex, INPUT_T>::value) {
-			cut_int8_core<double, MANTISSA_T>(out_ptr + row_index * n + i                , N, a.x, max_exp.x, num_split, mantissa_length);
-			cut_int8_core<double, MANTISSA_T>(out_ptr + row_index * n + i + N * num_split, N, a.y, max_exp.y, num_split, mantissa_length);
+			cut_int8_core<double, MANTISSA_T>(out_ptr + row_index * ldo + i                , N, a.x, max_exp.x, num_split, mantissa_length);
+			cut_int8_core<double, MANTISSA_T>(out_ptr + row_index * ldo + i + N * num_split, N, a.y, max_exp.y, num_split, mantissa_length);
 		} else {
-			cut_int8_core<double, MANTISSA_T>(out_ptr + row_index * n + i                , N, a  , max_exp  , num_split, mantissa_length);
+			cut_int8_core<double, MANTISSA_T>(out_ptr + row_index * ldo + i                , N, a  , max_exp  , num_split, mantissa_length);
 		}
 	}
+	// Fill the padding elements with zeros
+	for (; i < ldo; i += blockDim.x) {
+		for (std::uint32_t j = 0; j < num_split; j++) {
+			if constexpr (std::is_same<cuDoubleComplex, INPUT_T>::value) {
+				*(out_ptr + row_index * ldo + i                 + j * N) = 0;
+				*(out_ptr + row_index * ldo + i + N * num_split + j * N) = 0;
+			} else {
+				*(out_ptr + row_index * ldo + i                 + j * N) = 0;
+			}
+		}
+	}
+
 
 	if (threadIdx.x == 0) {
 		if constexpr (std::is_same<cuDoubleComplex, INPUT_T>::value) {
@@ -236,6 +251,7 @@ __global__ void split_int8_kernel(
 template <class INPUT_T>
 void split_int8_A(
 		std::int8_t* const out_ptr,
+		const std::uint32_t ldo,
 		typename mtk::ozimmu::detail::real_type<INPUT_T>::type* const max_exp_ptr,
 		const mtk::ozimmu::operation_t op,
 		const std::size_t m,
@@ -253,16 +269,18 @@ void split_int8_A(
 
 	using MANTISSA_T = __uint128_t;
 	split_int8_kernel<INPUT_T, MANTISSA_T>
-		<<<grid_size, block_size, 0, cuda_stream>>>(
-				out_ptr,
-				max_exp_ptr,
-				m, n,
-				in_ptr,
-				ld,
-				num_split,
-				mantissa_length,
-				is_col_major
-				);
+			<<<grid_size, block_size, 0, cuda_stream>>>(
+					out_ptr,
+					ldo,
+					max_exp_ptr,
+					m, n,
+					in_ptr,
+					ld,
+					num_split,
+					mantissa_length,
+					is_col_major
+					);
+	CUTF_CHECK_ERROR(cudaDeviceSynchronize());
 }
 
 } // unnamed namespace
@@ -270,6 +288,7 @@ void split_int8_A(
 template <class T>
 void mtk::ozimmu::split_int8(
 		std::int8_t* const out_ptr,
+		const std::uint32_t ldo,
 		typename mtk::ozimmu::detail::real_type<T>::type* const max_exp_ptr,
 		const std::size_t m,
 		const std::size_t n,
@@ -284,6 +303,7 @@ void mtk::ozimmu::split_int8(
 	if (matrix == mtk::ozimmu::detail::matrix_A) {
 		split_int8_A(
 				out_ptr,
+				ldo,
 				max_exp_ptr,
 				op,
 				m, n,
@@ -295,6 +315,7 @@ void mtk::ozimmu::split_int8(
 	} else {
 		split_int8_A(
 				out_ptr,
+				ldo,
 				max_exp_ptr,
 				op == mtk::ozimmu::op_n ? mtk::ozimmu::op_t : mtk::ozimmu::op_n,
 				n, m,
@@ -309,6 +330,7 @@ void mtk::ozimmu::split_int8(
 template
 void mtk::ozimmu::split_int8<double>(
 		std::int8_t* const out_ptr,
+		const std::uint32_t ldo,
 		double* const max_exp_ptr,
 		const std::size_t m,
 		const std::size_t n,
@@ -323,6 +345,7 @@ void mtk::ozimmu::split_int8<double>(
 template
 void mtk::ozimmu::split_int8<cuDoubleComplex>(
 		std::int8_t* const out_ptr,
+		const std::uint32_t ldo,
 		double* const max_exp_ptr,
 		const std::size_t m,
 		const std::size_t n,
@@ -399,11 +422,11 @@ __global__ void calculate_mantissa_loss_kernel(
 	__shared__ typename mtk::ozimmu::detail::real_type<INPUT_T>::type smem[32];
 	const auto row_index = blockIdx.x;
 	const auto max_exp = x2(get_exp_max_element(
-			in_ptr + (col_major ? row_index : (row_index * ld)),
-			n,
-			(col_major ? ld : 1),
-			smem
-			));
+					in_ptr + (col_major ? row_index : (row_index * ld)),
+					n,
+					(col_major ? ld : 1),
+					smem
+					));
 
 	for (unsigned i = threadIdx.x; i < n; i += blockDim.x) {
 		const auto a = in_ptr[(col_major ? (i * ld + row_index) : (i + row_index * ld))];
@@ -579,8 +602,8 @@ mtk::ozimmu::compute_mode_t mtk::ozimmu::auto_mode_select(
 }
 
 std::uint32_t mtk::ozimmu::get_bits_per_int8(
-    const std::uint32_t k
-    ) {
+		const std::uint32_t k
+		) {
 	if (k == 0) {
 		return 0;
 	}

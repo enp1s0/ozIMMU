@@ -12,8 +12,6 @@
 #include <matfile/matfile.hpp>
 #include <gpu_monitor/gpu_monitor.hpp>
 
-constexpr unsigned test_count = 100;
-
 constexpr unsigned long long seed = 0;
 
 std::string get_gpu_name_str() {
@@ -103,7 +101,7 @@ void gen_exp_rand(
 }
 
 template <class AB_T, class C_T, class MATMUL_FUNC>
-void gemm_eval_core(
+int gemm_eval_core(
 		const mtk::ozimmu::operation_t op_a,
 		const mtk::ozimmu::operation_t op_b,
 		const std::size_t m,
@@ -115,20 +113,28 @@ void gemm_eval_core(
 		const MATMUL_FUNC matmul_func,
 		const mtk::ozimmu::compute_mode_t mode,
 		const mtk::ozimmu::element_kind_t element_kind,
-		const std::string input_mode
+		const std::string input_mode,
+		const std::uint32_t test_count = 100,
+		const double error_threshold = 0
 		) {
-	matmul_func(
-			op_a, op_b,
-			m, n, k,
-			a_ptr, lda,
-			b_ptr, ldb,
-			c_ptr, ldc
-			);
+	int error_flag = 0;
+
+	error_flag = matmul_func(
+		op_a, op_b,
+		m, n, k,
+		a_ptr, lda,
+		b_ptr, ldb,
+		c_ptr, ldc
+		);
+
+	if (error_flag) {
+		return 1;
+	}
 
 	mtk::mateval::error_map_t error;
 	if (element_kind == mtk::ozimmu::real) {
 		error = mtk::mateval::cuda::get_error_AxB(
-				mtk::mateval::avg_relative_error | mtk::mateval::max_relative_error,
+				mtk::mateval::relative_residual | mtk::mateval::max_relative_error,
 				m, n, k,
 				conv_layout_oz2mateval(op_a),
 				conv_layout_oz2mateval(op_b),
@@ -139,7 +145,7 @@ void gemm_eval_core(
 				);
 	} else {
 		error = mtk::mateval::cuda::get_error_AxB(
-				mtk::mateval::avg_relative_error | mtk::mateval::max_relative_error,
+				mtk::mateval::relative_residual | mtk::mateval::max_relative_error,
 				m, n, k,
 				conv_layout_oz2mateval(op_a),
 				conv_layout_oz2mateval(op_b),
@@ -154,13 +160,17 @@ void gemm_eval_core(
 	const auto start_clock = std::chrono::system_clock::now();
 
 	for (unsigned i = 0; i < test_count; i++) {
-		matmul_func(
+		error_flag |= matmul_func(
 				op_a, op_b,
 				m, n, k,
 				a_ptr, lda,
 				b_ptr, ldb,
 				c_ptr, ldc
 				);
+	}
+
+	if (error_flag) {
+		return 1;
 	}
 
 	CUTF_CHECK_ERROR(cudaDeviceSynchronize());
@@ -170,23 +180,38 @@ void gemm_eval_core(
 
 	const auto throughput = 2 * m * n * k / elapsed_time * (element_kind == mtk::ozimmu::real ? 1 : 4);
 
-	std::printf("%s,%s,%s,%s,%lu,%lu,%lu,%e,%e,%e\n",
+	std::printf("%s,%s,%s,%s,%s,%s,%lu,%lu,%lu,%e,%e,%e\n",
 			get_gpu_name_str().c_str(),
 			(element_kind == mtk::ozimmu::real ? "D" : "Z"),
 			input_mode.c_str(),
 			mtk::ozimmu::get_compute_mode_name_str(mode).c_str(),
+			(op_a == mtk::ozimmu::op_n ? "N" : "T"),
+			(op_b == mtk::ozimmu::op_n ? "N" : "T"),
 			m, n, k,
-			error.at(mtk::mateval::avg_relative_error),
+			error.at(mtk::mateval::relative_residual),
 			error.at(mtk::mateval::max_relative_error),
 			throughput * 1e-12
 			);
 	std::fflush(stdout);
+
+	if (error_threshold != 0) {
+		if (error.at(mtk::mateval::relative_residual) < error_threshold) {
+			return 0;
+		}
+		std::printf("^^^ FAILED ^^^^\n");
+		std::fflush(stdout);
+		return 1;
+	}
+
+	return 0;
 }
 
 template <class T>
-void gemm_eval(
+int gemm_eval(
 		const mtk::ozimmu::gemm_list_t& gemm_list,
-		const std::string input_mode
+		const std::string input_mode,
+		const std::uint32_t test_count = 100,
+		const double error_threshold = 0.0
 		) {
 	mtk::ozimmu::handle_t ozimmu_handle;
 	mtk::ozimmu::create(&ozimmu_handle);
@@ -195,14 +220,14 @@ void gemm_eval(
 	std::size_t max_AB_count = 0;
 	std::size_t max_C_size = 0;
 	for (const auto gemm : gemm_list) {
-		const auto m = std::get<0>(gemm);
-		const auto n = std::get<1>(gemm);
-		const auto k = std::get<2>(gemm);
-		const auto element_kind = std::get<3>(gemm);
+		const auto m = std::get<2>(gemm);
+		const auto n = std::get<3>(gemm);
+		const auto k = std::get<4>(gemm);
+		const auto element_kind = std::get<5>(gemm);
 		max_AB_count = std::max(max_AB_count, (m * k + k * n) * (element_kind == mtk::ozimmu::real ? 1 : 2));
 		max_C_size  = std::max(max_C_size , m * n *
 				mtk::ozimmu::get_data_size_in_byte(
-				mtk::ozimmu::get_output_type(std::get<4>(gemm))) * (element_kind == mtk::ozimmu::real ? 1 : 2));
+				mtk::ozimmu::get_output_type(std::get<6>(gemm))) * (element_kind == mtk::ozimmu::real ? 1 : 2));
 	}
 
 	auto mat_AB_uptr = cutf::memory::get_device_unique_ptr<T>(max_AB_count);
@@ -220,23 +245,33 @@ void gemm_eval(
 			phi = std::stod(input_mode.substr(9));
 		} catch (const std::exception& e) {
 			std::fprintf(stderr, "Error: %s [%s (line:%d)]\n", e.what(), __FILE__, __LINE__);
-			return;
+			return 1;
 		}
 		gen_exp_rand<T>(mat_AB_uptr.get(), max_AB_count, phi, 0);
 	}
 
+	std::uint32_t num_errors = 0;
 	for (const auto gemm : gemm_list) {
-		const auto m = std::get<0>(gemm);
-		const auto n = std::get<1>(gemm);
-		const auto k = std::get<2>(gemm);
-		const auto element_kind = std::get<3>(gemm);
-		const auto mode = std::get<4>(gemm);
-		gemm_eval_core(
-				mtk::ozimmu::op_n,
-				mtk::ozimmu::op_n,
+		const auto op_A = std::get<0>(gemm);
+		const auto op_B = std::get<1>(gemm);
+		const auto m = std::get<2>(gemm);
+		const auto n = std::get<3>(gemm);
+		const auto k = std::get<4>(gemm);
+		const auto element_kind = std::get<5>(gemm);
+		const auto mode = std::get<6>(gemm);
+
+		const auto lda_r = op_A == mtk::ozimmu::op_n ? m : k;
+		const auto ldb_r = op_B == mtk::ozimmu::op_n ? k : n;
+
+		T* const a_ptr = mat_AB_uptr.get();
+		T* const b_ptr = a_ptr + m * k * (element_kind == mtk::ozimmu::real ? 1 : 2);
+
+		num_errors += gemm_eval_core(
+				op_A,
+				op_B,
 				m, n, k,
-				mat_AB_uptr.get(), m,
-				mat_AB_uptr.get() + m * k, k,
+				a_ptr, lda_r,
+				b_ptr, ldb_r,
 				mat_C_uptr.get(), m,
 				[&](
 						const mtk::ozimmu::operation_t op_a,
@@ -247,11 +282,11 @@ void gemm_eval(
 						const T* const a_ptr, const std::size_t lda,
 						const T* const b_ptr, const std::size_t ldb,
 						void* const c_ptr, const std::size_t ldc
-									) {
+									) -> int {
 				if (element_kind == mtk::ozimmu::real) {
 					using C_T = double;
 					const C_T alpha = 1, beta = 0;
-					mtk::ozimmu::gemm(
+					return mtk::ozimmu::gemm(
 							ozimmu_handle,
 							op_a, op_b,
 							m, n, k,
@@ -266,7 +301,7 @@ void gemm_eval(
 				} else {
 					using C_T = cuDoubleComplex;
 					const C_T alpha = make_cuDoubleComplex(1, 0), beta = make_cuDoubleComplex(0, 0);
-					mtk::ozimmu::gemm(
+					return mtk::ozimmu::gemm(
 							ozimmu_handle,
 							op_a, op_b,
 							m, n, k,
@@ -282,11 +317,14 @@ void gemm_eval(
 				},
 				mode,
 				element_kind,
-				input_mode
+				input_mode,
+				test_count,
+				error_threshold
 				);
 	}
 
 	mtk::ozimmu::destroy(ozimmu_handle);
+	return num_errors;
 }
 
 template <class SRC_T, class DST_T>
@@ -408,13 +446,14 @@ void gemm_eval_matfile(
 	std::size_t max_AB_count = 0;
 	std::size_t max_C_size = 0;
 	for (const auto gemm : gemm_list) {
-		const auto m = std::get<0>(gemm);
-		const auto n = std::get<1>(gemm);
-		const auto k = std::get<2>(gemm);
-		max_AB_count = std::max(max_AB_count, m * k + k * n);
+		const auto m = std::get<2>(gemm);
+		const auto n = std::get<3>(gemm);
+		const auto k = std::get<4>(gemm);
+		const auto element_kind = std::get<5>(gemm);
+		max_AB_count = std::max(max_AB_count, (m * k + k * n) * (element_kind == mtk::ozimmu::real ? 1 : 2));
 		max_C_size  = std::max(max_C_size , m * n *
 				mtk::ozimmu::get_data_size_in_byte(
-				mtk::ozimmu::get_output_type(std::get<4>(gemm))));
+				mtk::ozimmu::get_output_type(std::get<6>(gemm))) * (element_kind == mtk::ozimmu::real ? 1 : 2));
 	}
 
 	auto mat_AB_uptr = cutf::memory::get_device_unique_ptr<T>(max_AB_count);
@@ -422,11 +461,13 @@ void gemm_eval_matfile(
 
 
 	for (const auto gemm : gemm_list) {
-		const auto m = std::get<0>(gemm);
-		const auto n = std::get<1>(gemm);
-		const auto k = std::get<2>(gemm);
-		const auto element_kind = std::get<3>(gemm);
-		const auto mode = std::get<4>(gemm);
+		const auto op_A = std::get<0>(gemm);
+		const auto op_B = std::get<1>(gemm);
+		const auto m = std::get<2>(gemm);
+		const auto n = std::get<3>(gemm);
+		const auto k = std::get<4>(gemm);
+		const auto element_kind = std::get<5>(gemm);
+		const auto mode = std::get<6>(gemm);
 
 		const auto a_ptr = mat_AB_uptr.get();
 		const auto b_ptr = mat_AB_uptr.get() + m * k;
@@ -436,8 +477,8 @@ void gemm_eval_matfile(
 		matfile_to_device_memory(b_ptr, matfile_B_path);
 
 		gemm_eval_core(
-				mtk::ozimmu::op_n,
-				mtk::ozimmu::op_n,
+				op_A,
+				op_B,
 				m, n, k,
 				mat_AB_uptr.get(), m,
 				mat_AB_uptr.get() + m * k, k,
@@ -451,11 +492,11 @@ void gemm_eval_matfile(
 						const T* const a_ptr, const std::size_t lda,
 						const T* const b_ptr, const std::size_t ldb,
 						void* const c_ptr, const std::size_t ldc
-									) {
+									) -> int {
 					if (element_kind == mtk::ozimmu::real) {
 						using C_T = double;
 						const C_T alpha = 1, beta = 0;
-						mtk::ozimmu::gemm(
+						return mtk::ozimmu::gemm(
 								ozimmu_handle,
 								op_a, op_b,
 								m, n, k,
@@ -470,7 +511,7 @@ void gemm_eval_matfile(
 					} else {
 						using C_T = cuDoubleComplex;
 						const C_T alpha = make_cuDoubleComplex(1, 0), beta = make_cuDoubleComplex(0, 0);
-						mtk::ozimmu::gemm(
+						return mtk::ozimmu::gemm(
 								ozimmu_handle,
 								op_a, op_b,
 								m, n, k,
@@ -504,13 +545,14 @@ void gemm_eval_power(
 	std::size_t max_AB_count = 0;
 	std::size_t max_C_size = 0;
 	for (const auto gemm : gemm_list) {
-		const auto m = std::get<0>(gemm);
-		const auto n = std::get<1>(gemm);
-		const auto k = std::get<2>(gemm);
-		max_AB_count = std::max(max_AB_count, m * k + k * n);
+		const auto m = std::get<2>(gemm);
+		const auto n = std::get<3>(gemm);
+		const auto k = std::get<4>(gemm);
+		const auto element_kind = std::get<5>(gemm);
+		max_AB_count = std::max(max_AB_count, (m * k + k * n) * (element_kind == mtk::ozimmu::real ? 1 : 2));
 		max_C_size  = std::max(max_C_size , m * n *
 				mtk::ozimmu::get_data_size_in_byte(
-				mtk::ozimmu::get_output_type(std::get<4>(gemm))));
+				mtk::ozimmu::get_output_type(std::get<6>(gemm))) * (element_kind == mtk::ozimmu::real ? 1 : 2));
 	}
 
 	auto mat_AB_uptr = cutf::memory::get_device_unique_ptr<T>(max_AB_count);
@@ -522,11 +564,13 @@ void gemm_eval_power(
 	CUTF_CHECK_ERROR(cutf::curand::generate_normal(*cugen.get(), mat_AB_uptr.get(), max_AB_count, 0, 1));
 
 	for (const auto gemm : gemm_list) {
-		const auto m = std::get<0>(gemm);
-		const auto n = std::get<1>(gemm);
-		const auto k = std::get<2>(gemm);
-		const auto element_kind = std::get<3>(gemm);
-		const auto mode = std::get<4>(gemm);
+		const auto op_A = std::get<0>(gemm);
+		const auto op_B = std::get<1>(gemm);
+		const auto m = std::get<2>(gemm);
+		const auto n = std::get<3>(gemm);
+		const auto k = std::get<4>(gemm);
+		const auto element_kind = std::get<5>(gemm);
+		const auto mode = std::get<6>(gemm);
 
 		const auto gemm_func = [&](
 				const mtk::ozimmu::operation_t op_a,
@@ -537,11 +581,11 @@ void gemm_eval_power(
 				const T* const a_ptr, const std::size_t lda,
 				const T* const b_ptr, const std::size_t ldb,
 				void* const c_ptr, const std::size_t ldc
-				) {
+				) -> int {
 			if (mtk::ozimmu::get_output_type(mode) == mtk::ozimmu::fp32) {
 				using C_T = float;
 				const C_T alpha = 1, beta = 0;
-				mtk::ozimmu::gemm(
+				return mtk::ozimmu::gemm(
 						ozimmu_handle,
 						op_a, op_b,
 						m, n, k,
@@ -556,7 +600,7 @@ void gemm_eval_power(
 			} else {
 				using C_T = double;
 				const C_T alpha = 1, beta = 0;
-				mtk::ozimmu::gemm(
+				return mtk::ozimmu::gemm(
 						ozimmu_handle,
 						op_a, op_b,
 						m, n, k,
@@ -579,8 +623,8 @@ void gemm_eval_power(
 					const auto start_clock = std::chrono::system_clock::now();
 					while (true) {
 						gemm_func(
-								mtk::ozimmu::op_n,
-								mtk::ozimmu::op_n,
+								op_A,
+								op_B,
 								m, n, k,
 								mat_AB_uptr.get(), m,
 								mat_AB_uptr.get() + m * k, k,
@@ -680,8 +724,10 @@ void print_usage(
 			"%s matfile [/path/to/A.matrix] [/path/to/B.matrix] [Computing mode list]\n"
 			"%s [urand01 | normal01 | exp_rand-X] [zgemm | dgemm] [seq|exp2] [start_N] [end_N] [interval_N] [Computing mode list]\n"
 			"%s power [seq|exp2] [start_N] [end_N] [interval_N] [Computing mode list]\n"
+			"%s ci_test\n"
 			"Compute modes:\n"
 			" %s\n",
+			program_name,
 			program_name,
 			program_name,
 			program_name,
@@ -691,7 +737,7 @@ void print_usage(
 
 int main(int argc, char** argv) {
 
-	if (argc <= 2) {
+	if (argc <= 1) {
 		print_usage(argv[0]);
 		return 1;
 	}
@@ -722,13 +768,15 @@ int main(int argc, char** argv) {
 		mtk::ozimmu::gemm_list_t fp64in_gemm_list;
 
 		for (auto compute_mode : compute_mode_list) {
-			fp64in_gemm_list.push_back(std::tuple<std::size_t, std::size_t, std::size_t, mtk::ozimmu::element_kind_t, mtk::ozimmu::compute_mode_t>(
+			fp64in_gemm_list.push_back({
+																 mtk::ozimmu::op_n,
+																 mtk::ozimmu::op_n,
 						am,
 						bn,
 						an,
 						mtk::ozimmu::real,
 						compute_mode
-						));
+						});
 		}
 
 		std::printf(
@@ -773,13 +821,15 @@ int main(int argc, char** argv) {
 			if (N_mode == "exp2") {real_N = 1lu << N;}
 
 			for (auto compute_mode : compute_mode_list) {
-				fp64in_gemm_list.push_back(std::tuple<std::size_t, std::size_t, std::size_t, mtk::ozimmu::element_kind_t, mtk::ozimmu::compute_mode_t>(
+				fp64in_gemm_list.push_back({
+																	 mtk::ozimmu::op_n,
+																	 mtk::ozimmu::op_n,
 							real_N,
 							real_N,
 							real_N,
 							gemm == "dgemm" ? mtk::ozimmu::real : mtk::ozimmu::complx,
 							compute_mode
-							));
+							});
 			}
 		}
 
@@ -811,13 +861,15 @@ int main(int argc, char** argv) {
 			if (N_mode == "exp2") {real_N = 1lu << N;}
 
 			for (auto compute_mode : compute_mode_list) {
-				fp64in_gemm_list.push_back(std::tuple<std::size_t, std::size_t, std::size_t, mtk::ozimmu::element_kind_t, mtk::ozimmu::compute_mode_t>(
-							real_N,
-							real_N,
-							real_N,
-							mtk::ozimmu::real,
-							compute_mode
-							));
+				fp64in_gemm_list.push_back({
+																	 mtk::ozimmu::op_n,
+																	 mtk::ozimmu::op_n,
+																	 real_N,
+																	 real_N,
+																	 real_N,
+																	 mtk::ozimmu::real,
+																	 compute_mode
+																	 });
 			}
 		}
 
@@ -826,6 +878,64 @@ int main(int argc, char** argv) {
 		if (fp64in_gemm_list.size() != 0) {
 			gemm_eval_power<double>(fp64in_gemm_list);
 		}
+	} else if (input_mode == "ci_test") {
+		std::vector<std::size_t> n_list = {1023, 1024, 1025};
+		std::vector<mtk::ozimmu::operation_t> op_list = {mtk::ozimmu::op_n, mtk::ozimmu::op_t};
+		std::vector<mtk::ozimmu::compute_mode_t> mode_list = {
+			mtk::ozimmu::fp64_int8_8,
+			mtk::ozimmu::fp64_int8_9,
+			mtk::ozimmu::fp64_int8_10,
+			mtk::ozimmu::fp64_int8_11,
+			mtk::ozimmu::fp64_int8_12,
+			mtk::ozimmu::fp64_int8_13,
+			mtk::ozimmu::fp64_int8_14,
+			mtk::ozimmu::fp64_int8_15,
+			mtk::ozimmu::fp64_int8_16
+		};
+
+		mtk::ozimmu::gemm_list_t gemm_list;
+		// Real
+		for (const auto &op_A : op_list) {
+			for (const auto &op_B : op_list) {
+				for (const auto &m : n_list) {
+					for (const auto &n : n_list) {
+						for (const auto &k : n_list) {
+							for (const auto &compute_mode : mode_list) {
+								gemm_list.push_back({
+																		op_A,
+																		op_B,
+																		m, n, k,
+																		mtk::ozimmu::real,
+																		compute_mode
+																		});
+							}
+						}
+					}
+				}
+			}
+		}
+		// Complex
+		for (const auto &op_A : op_list) {
+			for (const auto &op_B : op_list) {
+				for (const auto &m : n_list) {
+					for (const auto &n : n_list) {
+						for (const auto &k : n_list) {
+							for (const auto &compute_mode : mode_list) {
+								gemm_list.push_back({
+																		op_A,
+																		op_B,
+																		m, n, k,
+																		mtk::ozimmu::complx,
+																		compute_mode
+																		});
+							}
+						}
+					}
+				}
+			}
+		}
+		const auto num_errors = gemm_eval<double>(gemm_list, "urand01", 1, 1e-15);
+		std::printf("%5lu / %5lu PASSED\n", gemm_list.size() - num_errors, gemm_list.size());
 	} else {
 		std::fprintf(stderr, "Error: Unknown input mode \"%s\"\n", input_mode.c_str());
 		return 1;

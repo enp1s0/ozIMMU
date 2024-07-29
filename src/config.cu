@@ -98,6 +98,7 @@ std::string mtk::ozimmu::detail::gemm_mode_str(
 
 // working memory size calculation
 std::size_t mtk::ozimmu::detail::calculate_working_memory_size(
+		const mtk::ozimmu::operation_t op,
 		const std::size_t m,
 		const std::size_t n,
 		const mtk::ozimmu::compute_mode_t compute_mode,
@@ -113,10 +114,12 @@ std::size_t mtk::ozimmu::detail::calculate_working_memory_size(
 		split_data_types = split_config.matrix_B_split_types;
 	}
 
-	std::size_t sum_data_type_size = 0;
+	std::size_t size_sum = 0;
 	for (const auto d : split_data_types) {
-		sum_data_type_size += mtk::ozimmu::get_data_size_in_byte(d);
+		const auto num_slice_elements = mtk::ozimmu::get_slice_num_elements<void>(m, n, matrix == mtk::ozimmu::detail::matrix_A ? mtk::ozimmu::op_t : mtk::ozimmu::op_n, d);
+		size_sum += mtk::ozimmu::get_data_size_in_byte(d) * num_slice_elements;
 	}
 
-	return sum_data_type_size * m * n * (element_kind == mtk::ozimmu::real ? 1 : 2);
+
+	return size_sum * (element_kind == mtk::ozimmu::real ? 1 : 2);
 }

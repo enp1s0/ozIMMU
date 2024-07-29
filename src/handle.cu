@@ -64,14 +64,16 @@ std::size_t mtk::ozimmu::reallocate_working_memory(
 	std::size_t max_working_memory_size = 0;
 
 	for (const auto gemm : gemm_list) {
-		const auto m = std::get<0>(gemm);
-		const auto n = std::get<1>(gemm);
-		const auto k = std::get<2>(gemm);
-		const auto element_kind = std::get<3>(gemm);
-		const auto mode = std::get<4>(gemm);
+		const auto op_A = std::get<0>(gemm);
+		const auto op_B = std::get<1>(gemm);
+		const auto m = std::get<2>(gemm);
+		const auto n = std::get<3>(gemm);
+		const auto k = std::get<4>(gemm);
+		const auto element_kind = std::get<5>(gemm);
+		const auto mode = std::get<6>(gemm);
 
-		const auto working_memory_A = mtk::ozimmu::detail::calculate_working_memory_size(m, k, mode, detail::matrix_A, element_kind);
-		const auto working_memory_B = mtk::ozimmu::detail::calculate_working_memory_size(k, n, mode, detail::matrix_B, element_kind);
+		const auto working_memory_A = mtk::ozimmu::detail::calculate_working_memory_size(op_A, m, k, mode, detail::matrix_A, element_kind);
+		const auto working_memory_B = mtk::ozimmu::detail::calculate_working_memory_size(op_B, k, n, mode, detail::matrix_B, element_kind);
 		const auto working_memory_C_fp32 = m * n * mtk::ozimmu::get_data_size_in_byte(fp32);
 		const auto working_memory_C_fp64 = m * n * mtk::ozimmu::get_data_size_in_byte(fp64) * (element_kind == mtk::ozimmu::real ? 1 : 2);
 		std::size_t etc = 0;
@@ -225,6 +227,7 @@ std::size_t mtk::ozimmu::get_data_size_in_byte(
 	case mtk::ozimmu::int8:
 		return 1;
 	default:
+		OZIMMU_NOT_IMPLEMENTED;
 		break;
 	}
 	return 0;

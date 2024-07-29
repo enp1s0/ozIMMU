@@ -10,7 +10,11 @@
 
 mtk::ozimmu::gemm_list_t get_default_gemm_list() {
 	return mtk::ozimmu::gemm_list_t{
-		std::tuple<std::size_t, std::size_t, std::size_t, mtk::ozimmu::element_kind_t, mtk::ozimmu::compute_mode_t>{1024, 1024, 1024, mtk::ozimmu::real, mtk::ozimmu::fp64_int8_9}
+		{
+			mtk::ozimmu::op_n,
+			mtk::ozimmu::op_n,
+			1024, 1024, 1024, mtk::ozimmu::real, mtk::ozimmu::fp64_int8_9
+		}
 	};
 }
 
@@ -164,7 +168,11 @@ CUBLASAPI cublasStatus_t cublasGemmEx(cublasHandle_t handle, cublasOperation_t t
 			((Atype == CUDA_R_64F && Btype == CUDA_R_64F && Ctype == CUDA_R_64F) || (Atype == CUDA_C_64F && Btype == CUDA_C_64F && Ctype == CUDA_C_64F))
 			) {
 		const auto gemm_config = mtk::ozimmu::gemm_list_t {
-			std::tuple<std::size_t, std::size_t, std::size_t, mtk::ozimmu::element_kind_t, mtk::ozimmu::compute_mode_t>{m, n, k, mtk::ozimmu::complx, compute_mode}
+			{
+				op_cublas2oz(transa),
+						op_cublas2oz(transb),
+				m, n, k, mtk::ozimmu::complx, compute_mode
+			}
 		};
 
 		cudaStream_t cuda_stream;
@@ -343,7 +351,11 @@ CUBLASAPI cublasStatus_t cublasGemmStridedBatchedEx(cublasHandle_t handle, cubla
 			((Atype == CUDA_R_64F && Btype == CUDA_R_64F && Ctype == CUDA_R_64F) || (Atype == CUDA_C_64F && Btype == CUDA_C_64F && Ctype == CUDA_C_64F))
 			) {
 		const auto gemm_config = mtk::ozimmu::gemm_list_t {
-			std::tuple<std::size_t, std::size_t, std::size_t, mtk::ozimmu::element_kind_t, mtk::ozimmu::compute_mode_t>{m, n, k, mtk::ozimmu::complx, compute_mode}
+			{
+				op_cublas2oz(transa),
+				op_cublas2oz(transb),
+				m, n, k, mtk::ozimmu::complx, compute_mode
+			}
 		};
 
 		cudaStream_t cuda_stream;

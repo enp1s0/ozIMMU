@@ -6,6 +6,8 @@
 #include <cuComplex.h>
 #include <ozimmu/ozimmu.hpp>
 
+#define OZIMMU_NOT_IMPLEMENTED mtk::ozimmu::detail::print_not_implemented(__FILE__, __LINE__, __func__)
+
 namespace mtk {
 namespace ozimmu {
 namespace detail {
@@ -22,6 +24,56 @@ struct real_type {using type = T;};
 template <>
 struct real_type<cuDoubleComplex> {using type = double;};
 } // namespace detail
+
+template <class slice_element_t>
+inline std::uint32_t padded_ld(
+    const std::uint32_t n
+    ) {
+	using align_t = std::uint32_t;
+	if (sizeof(align_t) >= sizeof(slice_element_t)) {
+		const auto f = sizeof(align_t) / sizeof(slice_element_t);
+		return ((n + f - 1) / f) * f;
+	} else {
+		return n;
+	}
+}
+
+template <class slice_element_t>
+inline std::uint32_t get_slice_ld(
+    const std::uint32_t m,
+    const std::uint32_t n,
+    const mtk::ozimmu::operation_t op,
+		const mtk::ozimmu::data_t d = mtk::ozimmu::data_t::none
+    ) {
+	if constexpr (!std::is_same_v<slice_element_t, void>) {
+		return padded_ld<slice_element_t>(op == mtk::ozimmu::op_n ? m : n);
+	} else {
+		if (mtk::ozimmu::get_data_size_in_byte(d) == 0) {
+			return 0;
+		} else if (mtk::ozimmu::get_data_size_in_byte(d) == 1) {
+			return get_slice_ld<std::uint8_t>(m, n, op);
+		} else if (mtk::ozimmu::get_data_size_in_byte(d) == 2) {
+			return get_slice_ld<std::uint16_t>(m, n, op);
+		} else if (mtk::ozimmu::get_data_size_in_byte(d) == 4) {
+			return get_slice_ld<std::uint32_t>(m, n, op);
+		}
+		OZIMMU_NOT_IMPLEMENTED;
+	}
+
+	OZIMMU_NOT_IMPLEMENTED;
+	return 0;
+}
+
+template <class slice_element_t>
+inline std::uint32_t get_slice_num_elements(
+    const std::uint32_t m,
+    const std::uint32_t n,
+    const mtk::ozimmu::operation_t op,
+		const mtk::ozimmu::data_t dtype = mtk::ozimmu::data_t::none
+    ) {
+	return get_slice_ld<slice_element_t>(m, n, op, dtype) * (op == mtk::ozimmu::op_n ? n : m);
+}
+
 } // namespace ozimmu
 } // namespace mtk
 
@@ -98,4 +150,15 @@ inline int check_gemm_shape(
 	return 0;
 }
 
-#define OZIMMU_NOT_IMPLEMENTED mtk::ozimmu::detail::print_not_implemented(__FILE__, __LINE__, __func__)
+template <class T>
+inline int check_address_alignment(
+  const T* const ptr,
+  const std::string mat_name
+		) {
+  if (reinterpret_cast<std::uint64_t>(ptr) % sizeof(T)) {
+    const std::string message = "Invalid address alignment for matrix " + mat_name;
+    ozIMMU_error(message);
+		return 1;
+  }
+  return 0;
+}
