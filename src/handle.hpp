@@ -24,6 +24,10 @@ struct mtk::ozimmu::handle {
   compute_mode_t last_auto_mode = mtk::ozimmu::dgemm;
 
   double avg_mantissa_loss_threshold = 0;
+
+  std::uint32_t intercept_threshold_m;
+  std::uint32_t intercept_threshold_n;
+  std::uint32_t intercept_threshold_k;
 };
 
 namespace mtk {

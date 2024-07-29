@@ -74,10 +74,20 @@ inline std::uint32_t get_slice_num_elements(
 } // namespace ozimmu
 } // namespace mtk
 
+inline std::string
+ozIMMU_load_env_if_defined(const std::string env_str,
+                           const std::string default_v = "") {
+  const auto env = getenv(env_str.c_str());
+  if (env != nullptr) {
+    return env;
+  }
+  return default_v;
+}
+
 // For logging
-inline void ozTCECGEMM_run_if_env_defined(const std::string env_str,
-                                          const std::function<void(void)> func,
-                                          const bool default_v = 0) {
+inline void ozIMMU_run_if_env_defined(const std::string env_str,
+                                      const std::function<void(void)> func,
+                                      const bool default_v = 0) {
   const auto env = getenv(env_str.c_str());
   if ((env != nullptr && std::string(env) != "0") ||
       (env == nullptr && default_v)) {
@@ -87,7 +97,7 @@ inline void ozTCECGEMM_run_if_env_defined(const std::string env_str,
 
 inline void ozIMMU_log(const std::string str) {
   const std::string info_env_name = "OZIMMU_INFO";
-  ozTCECGEMM_run_if_env_defined(info_env_name, [&]() {
+  ozIMMU_run_if_env_defined(info_env_name, [&]() {
     std::fprintf(stdout, "[ozIMMU LOG] %s\n", str.c_str());
     std::fflush(stdout);
   });
@@ -95,7 +105,7 @@ inline void ozIMMU_log(const std::string str) {
 
 inline void ozIMMU_error(const std::string str) {
   const std::string error_env_name = "OZIMMU_ERROR";
-  ozTCECGEMM_run_if_env_defined(
+  ozIMMU_run_if_env_defined(
       error_env_name,
       [&]() {
         std::fprintf(stdout, "[ozIMMU ERROR] %s\n", str.c_str());

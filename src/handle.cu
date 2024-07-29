@@ -22,6 +22,13 @@ int mtk::ozimmu::create(mtk::ozimmu::handle_t *h,
                               sizeof(unsigned long long int) *
                                   handle->mantissa_loss_counter_length));
 
+  handle->intercept_threshold_m = std::stoul(
+      ozIMMU_load_env_if_defined("OZIMMU_INTERCEPT_THRESHOLD_M", "1024"));
+  handle->intercept_threshold_n = std::stoul(
+      ozIMMU_load_env_if_defined("OZIMMU_INTERCEPT_THRESHOLD_N", "1024"));
+  handle->intercept_threshold_k = std::stoul(
+      ozIMMU_load_env_if_defined("OZIMMU_INTERCEPT_THRESHOLD_K", "1024"));
+
   return 0;
 }
 
