@@ -46,6 +46,7 @@ split_config_t get_split_config(
 std::string gemm_mode_str(const gemm_t gemm_mode);
 
 std::size_t calculate_working_memory_size(
+		const mtk::ozimmu::operation_t op,
 		const std::size_t m,
 		const std::size_t n,
 		const mtk::ozimmu::compute_mode_t compute_mode,

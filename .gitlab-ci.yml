@@ -5,3 +5,21 @@ precommit:
     - pip install pre-commit
   script:
     - pre-commit run --all-files
+
+unittest:
+  tags:
+    - cuda
+  image: nvidia/cuda:12.5.1-devel-ubuntu22.04
+  before_script:
+    - apt update && apt install -y --no-install-recommends build-essential wget lsb-release software-properties-common git libnvidia-ml-dev
+    - wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc 2>/dev/null | gpg --dearmor - | tee /etc/apt/trusted.gpg.d/kitware.gpg >/dev/null
+    - apt-add-repository "deb https://apt.kitware.com/ubuntu/ $(lsb_release -cs) main"
+    - apt update && apt install -y --no-install-recommends cmake
+  script:
+    - nvidia-smi
+    - git submodule update --recursive --init
+    - sed -i 's/BUILD_TEST OFF/BUILD_TEST ON/g' CMakeLists.txt
+    - mkdir -p build && cd build
+    - cmake ..
+    - make -j8
+    - ./main.test ci_test

@@ -12,6 +12,7 @@ namespace ozimmu {
 template <class T>
 void split_int8(
 		std::int8_t* const out_ptr,
+		std::uint32_t ldo,
 		typename mtk::ozimmu::detail::real_type<T>::type* const max_exp_ptr,
 		const std::size_t m,
 		const std::size_t n,

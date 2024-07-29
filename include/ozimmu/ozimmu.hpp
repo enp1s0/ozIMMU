@@ -42,7 +42,8 @@ enum data_t {
 	fp32,
 	fp16,
 	int8,
-	original
+	original,
+	none
 };
 
 enum malloc_mode_t {
@@ -67,7 +68,8 @@ void clear_profiler_result(mtk::ozimmu::handle_t handle);
 void set_auto_mantissa_loss_threashold(mtk::ozimmu::handle_t handle, const double threshold);
 double get_auto_mantissa_loss_threashold(mtk::ozimmu::handle_t handle);
 
-using gemm_list_t = std::vector<std::tuple<std::size_t, std::size_t, std::size_t, mtk::ozimmu::element_kind_t, mtk::ozimmu::compute_mode_t>>;
+using gemm_params_t = std::tuple<mtk::ozimmu::operation_t, mtk::ozimmu::operation_t, std::size_t, std::size_t, std::size_t, mtk::ozimmu::element_kind_t, mtk::ozimmu::compute_mode_t>;
+using gemm_list_t = std::vector<gemm_params_t>;
 
 // ReturnA: memory size if reallocated; otherwise, zero
 std::size_t reallocate_working_memory(
