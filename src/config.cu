@@ -46,11 +46,11 @@ mtk::ozimmu::detail::split_config_t mtk::ozimmu::detail::get_split_config(
 			if (compute_mode == mtk::ozimmu::fp64_int8_11) {num_split = 11;}
 			if (compute_mode == mtk::ozimmu::fp64_int8_12) {num_split = 12;}
 			if (compute_mode == mtk::ozimmu::fp64_int8_13) {num_split = 13;}
-			if (compute_mode == mtk::ozimmu::fp64_int8_13) {num_split = 14;}
-			if (compute_mode == mtk::ozimmu::fp64_int8_13) {num_split = 15;}
-			if (compute_mode == mtk::ozimmu::fp64_int8_13) {num_split = 16;}
-			if (compute_mode == mtk::ozimmu::fp64_int8_13) {num_split = 17;}
-			if (compute_mode == mtk::ozimmu::fp64_int8_13) {num_split = 18;}
+			if (compute_mode == mtk::ozimmu::fp64_int8_14) {num_split = 14;}
+			if (compute_mode == mtk::ozimmu::fp64_int8_15) {num_split = 15;}
+			if (compute_mode == mtk::ozimmu::fp64_int8_16) {num_split = 16;}
+			if (compute_mode == mtk::ozimmu::fp64_int8_17) {num_split = 17;}
+			if (compute_mode == mtk::ozimmu::fp64_int8_18) {num_split = 18;}
 
 			// Data
 			std::vector<mtk::ozimmu::data_t> split_types(num_split + 1);
