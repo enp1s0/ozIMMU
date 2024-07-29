@@ -59,7 +59,7 @@ mtk::ozimmu::handle_t *global_ozimmu_handle = nullptr;
 mtk::ozimmu::handle_t &get_global_ozimmu_handle() {
   if (global_ozimmu_handle == nullptr) {
     mtk::ozimmu::malloc_mode_t malloc_mode = mtk::ozimmu::malloc_sync;
-    ozTCECGEMM_run_if_env_defined("OZIMMU_MALLOC_ASYNC", [&]() {
+    ozIMMU_run_if_env_defined("OZIMMU_MALLOC_ASYNC", [&]() {
       malloc_mode = mtk::ozimmu::malloc_async;
     });
     ozIMMU_log("Initializing ozIMMU handle...");
@@ -141,8 +141,10 @@ CUBLASAPI cublasStatus_t cublasGemmEx(
   return CUBLAS_STATUS_NOT_SUPPORTED;
 #else
   const auto compute_mode = get_compute_mode(m, n, k);
-  if (compute_mode != mtk::ozimmu::dgemm && m >= 1024 && n >= 1024 &&
-      k >= 1024 &&
+  if (compute_mode != mtk::ozimmu::dgemm &&
+      m >= (*global_ozimmu_handle)->intercept_threshold_m &&
+      n >= (*global_ozimmu_handle)->intercept_threshold_k &&
+      k >= (*global_ozimmu_handle)->intercept_threshold_k &&
       ((Atype == CUDA_R_64F && Btype == CUDA_R_64F && Ctype == CUDA_R_64F) ||
        (Atype == CUDA_C_64F && Btype == CUDA_C_64F && Ctype == CUDA_C_64F))) {
     const auto gemm_config =
@@ -297,8 +299,10 @@ CUBLASAPI cublasStatus_t cublasGemmStridedBatchedEx(
   return CUBLAS_STATUS_NOT_SUPPORTED;
 #else
   const auto compute_mode = get_compute_mode(m, n, k);
-  if (compute_mode != mtk::ozimmu::dgemm && m >= 1024 && n >= 1024 &&
-      k >= 1024 &&
+  if (compute_mode != mtk::ozimmu::dgemm &&
+      m >= (*global_ozimmu_handle)->intercept_threshold_m &&
+      n >= (*global_ozimmu_handle)->intercept_threshold_k &&
+      k >= (*global_ozimmu_handle)->intercept_threshold_k &&
       ((Atype == CUDA_R_64F && Btype == CUDA_R_64F && Ctype == CUDA_R_64F) ||
        (Atype == CUDA_C_64F && Btype == CUDA_C_64F && Ctype == CUDA_C_64F))) {
     const auto gemm_config =

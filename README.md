@@ -66,6 +66,13 @@ export OZIMMU_MALLOC_ASYNC=1
 
 # Set AUTO mode mantissa loss threshold
 export OZIMMU_AUTO_AVG_MANTISSA_LOSS_THRESHOLD=1.5
+
+# Set ozIMMU intercept threshold.
+export OZIMMU_INTERCEPT_THRESHOLD_M=128
+export OZIMMU_INTERCEPT_THRESHOLD_N=128
+export OZIMMU_INTERCEPT_THRESHOLD_K=128
+# The ozIMMU gemm function is executed if `m`, `n`, and `k` are larger or equal to `OZIMMU_INTERCEPT_THRESHOLD_M`, `N`, and `K`.
+# Otherwise, the original cuBLAS function is executed.
 ```
 
 ## Citation
