@@ -273,8 +273,7 @@ __global__ void vector_copy_kernel(DST_T *const dst_ptr,
 template <class DEVICE_T>
 void matfile_to_device_memory(DEVICE_T *const d_ptr,
                               const std::string matfile_path) {
-  std::size_t m, n;
-  mtk::matfile::load_size(m, n, matfile_path);
+  const auto [m, n] = mtk::matfile::load_matrix_size(matfile_path);
   const auto dtype = mtk::matfile::load_dtype(matfile_path);
 
   auto h_mat_uptr = cutf::memory::get_host_unique_ptr<std::uint8_t>(
@@ -283,12 +282,12 @@ void matfile_to_device_memory(DEVICE_T *const d_ptr,
   const std::size_t block_size = 256;
   const std::size_t grid_size = (m * n + block_size - 1) / block_size;
 
-  if (dtype == mtk::matfile::fp32) {
+  if (dtype == mtk::matfile::data_t::fp32) {
     mtk::matfile::load_dense(reinterpret_cast<float *>(h_mat_uptr.get()), m,
                              matfile_path);
     vector_copy_kernel<<<grid_size, block_size>>>(
         d_ptr, reinterpret_cast<float *>(h_mat_uptr.get()), m * n);
-  } else if (dtype == mtk::matfile::fp64) {
+  } else if (dtype == mtk::matfile::data_t::fp64) {
     mtk::matfile::load_dense(reinterpret_cast<double *>(h_mat_uptr.get()), m,
                              matfile_path);
     vector_copy_kernel<<<grid_size, block_size>>>(
@@ -305,12 +304,11 @@ void matfile_to_device_memory(DEVICE_T *const d_ptr,
 template <class C_T>
 mtk::mateval::error_map_t eval_matfile(const std::string matfile_C_path,
                                        const C_T *const c_ptr) {
-  std::size_t m, n;
-  mtk::matfile::load_size(m, n, matfile_C_path);
+  const auto [m, n] = mtk::matfile::load_matrix_size(matfile_C_path);
   const auto dtype = mtk::matfile::load_dtype(matfile_C_path);
 
   mtk::mateval::error_map_t error;
-  if (dtype == mtk::matfile::fp32) {
+  if (dtype == mtk::matfile::data_t::fp32) {
     using R_T = float;
     auto mat_ref_uptr = cutf::memory::get_host_unique_ptr<R_T>(m * n);
     mtk::matfile::load_dense(mat_ref_uptr.get(), m, matfile_C_path);
@@ -319,7 +317,7 @@ mtk::mateval::error_map_t eval_matfile(const std::string matfile_C_path,
         mtk::mateval::max_relative_error | mtk::mateval::relative_residual, m,
         n, mtk::mateval::col_major, mtk::mateval::col_major, c_ptr, m,
         reinterpret_cast<R_T *>(mat_ref_uptr.get()), m);
-  } else if (dtype == mtk::matfile::fp64) {
+  } else if (dtype == mtk::matfile::data_t::fp64) {
     using R_T = double;
     auto mat_ref_uptr = cutf::memory::get_host_unique_ptr<R_T>(m * n);
     mtk::matfile::load_dense(mat_ref_uptr.get(), m, matfile_C_path);
@@ -588,9 +586,8 @@ int main(int argc, char **argv) {
     const auto compute_mode_list =
         get_compute_mode_list_from_argv(argc - 4, argv + 4);
 
-    std::size_t am, an, bm, bn;
-    mtk::matfile::load_size(am, an, matfile_A_path);
-    mtk::matfile::load_size(bm, bn, matfile_B_path);
+    const auto [am, an] = mtk::matfile::load_matrix_size(matfile_A_path);
+    const auto [bm, bn] = mtk::matfile::load_matrix_size(matfile_B_path);
     if (an != bm) {
       std::fprintf(stderr,
                    "Error: matrix shapes are mismatch: A=(%lu, %lu), B=(%lu, "
