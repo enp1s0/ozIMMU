@@ -60,6 +60,38 @@ void mtk::ozimmu::set_cuda_stream(mtk::ozimmu::handle_t handle,
   handle->cuda_stream = cuda_stream;
 }
 
+std::size_t
+mtk::ozimmu::reallocate_working_memory(mtk::ozimmu::handle_t handle,
+                                       const std::size_t size_in_byte) {
+  if (size_in_byte > handle->current_working_memory_size) {
+    handle->current_working_memory_size = size_in_byte;
+
+    ozIMMU_log("Reallocated memory : " + std::to_string(size_in_byte) + " B");
+
+    if (handle->working_memory_ptr != nullptr) {
+      if (handle->malloc_mode == mtk::ozimmu::malloc_sync) {
+        CUTF_CHECK_ERROR(cudaFree(handle->working_memory_ptr));
+      } else {
+        CUTF_CHECK_ERROR(
+            cudaFreeAsync(handle->working_memory_ptr, handle->cuda_stream));
+      }
+    }
+
+    // Realloc
+    if (handle->malloc_mode == mtk::ozimmu::malloc_sync) {
+      CUTF_CHECK_ERROR(cudaMalloc(&(handle->working_memory_ptr),
+                                  handle->current_working_memory_size));
+    } else {
+      CUTF_CHECK_ERROR(cudaMallocAsync(&(handle->working_memory_ptr),
+                                       handle->current_working_memory_size,
+                                       handle->cuda_stream));
+    }
+
+    return size_in_byte;
+  }
+  return 0;
+}
+
 std::size_t mtk::ozimmu::reallocate_working_memory(
     mtk::ozimmu::handle_t handle, const mtk::ozimmu::gemm_list_t gemm_list) {
   std::size_t max_working_memory_size = 0;
@@ -107,34 +139,8 @@ std::size_t mtk::ozimmu::reallocate_working_memory(
                                               working_memory_C_fp64 + etc);
   }
 
-  if (max_working_memory_size > handle->current_working_memory_size) {
-    handle->current_working_memory_size = max_working_memory_size;
-
-    ozIMMU_log("Reallocated memory : " +
-               std::to_string(max_working_memory_size) + " B");
-
-    if (handle->working_memory_ptr != nullptr) {
-      if (handle->malloc_mode == mtk::ozimmu::malloc_sync) {
-        CUTF_CHECK_ERROR(cudaFree(handle->working_memory_ptr));
-      } else {
-        CUTF_CHECK_ERROR(
-            cudaFreeAsync(handle->working_memory_ptr, handle->cuda_stream));
-      }
-    }
-
-    // Realloc
-    if (handle->malloc_mode == mtk::ozimmu::malloc_sync) {
-      CUTF_CHECK_ERROR(cudaMalloc(&(handle->working_memory_ptr),
-                                  handle->current_working_memory_size));
-    } else {
-      CUTF_CHECK_ERROR(cudaMallocAsync(&(handle->working_memory_ptr),
-                                       handle->current_working_memory_size,
-                                       handle->cuda_stream));
-    }
-
-    return max_working_memory_size;
-  }
-  return 0;
+  return mtk::ozimmu::reallocate_working_memory(handle,
+                                                max_working_memory_size);
 }
 
 std::string

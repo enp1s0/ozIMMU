@@ -1,3 +1,4 @@
+#include "cublas_helper.hpp"
 #include "culip.hpp"
 #include "handle.hpp"
 #include "utils.hpp"
@@ -147,10 +148,6 @@ CUBLASAPI cublasStatus_t cublasGemmEx(
       k >= (*global_ozimmu_handle)->intercept_threshold_k &&
       ((Atype == CUDA_R_64F && Btype == CUDA_R_64F && Ctype == CUDA_R_64F) ||
        (Atype == CUDA_C_64F && Btype == CUDA_C_64F && Ctype == CUDA_C_64F))) {
-    const auto gemm_config =
-        mtk::ozimmu::gemm_list_t{{op_cublas2oz(transa), op_cublas2oz(transb), m,
-                                  n, k, mtk::ozimmu::complx, compute_mode}};
-
     cudaStream_t cuda_stream;
     CUTF_CHECK_ERROR(cublasGetStream(handle, &cuda_stream));
     mtk::ozimmu::set_cuda_stream(get_global_ozimmu_handle(), cuda_stream);
@@ -169,26 +166,59 @@ CUBLASAPI cublasStatus_t cublasGemmEx(
           cuda_stream, &mtk::ozimmu::CULiP::record_timestamp,
           (void *)&profile_result.start_timestamp);
     }
-    int error = 0;
-    if (Atype == CUDA_R_64F) {
-      error = mtk::ozimmu::gemm(get_global_ozimmu_handle(),
-                                op_cublas2oz(transa), op_cublas2oz(transb), m,
-                                n, k, reinterpret_cast<const double *>(alpha),
-                                reinterpret_cast<const double *>(A), lda,
-                                reinterpret_cast<const double *>(B), ldb,
-                                reinterpret_cast<const double *>(beta),
-                                reinterpret_cast<double *>(C), ldc,
-                                compute_mode, mtk::ozimmu::real);
-    } else if (Atype == CUDA_C_64F) {
-      error =
-          mtk::ozimmu::gemm(get_global_ozimmu_handle(), op_cublas2oz(transa),
-                            op_cublas2oz(transb), m, n, k,
-                            reinterpret_cast<const cuDoubleComplex *>(alpha),
-                            reinterpret_cast<const cuDoubleComplex *>(A), lda,
-                            reinterpret_cast<const cuDoubleComplex *>(B), ldb,
-                            reinterpret_cast<const cuDoubleComplex *>(beta),
-                            reinterpret_cast<cuDoubleComplex *>(C), ldc,
-                            compute_mode, mtk::ozimmu::complx);
+
+    cublasStatus_t cublas_status;
+    if (compute_mode == mtk::ozimmu::sgemm) {
+      // The mode internally uses SGEMM
+      if (Atype == CUDA_R_64F && Btype == CUDA_R_64F && Ctype == CUDA_R_64F) {
+        using T = double;
+        cublas_status = mtk::ozimmu::dgemm_f32<T>(
+            get_global_ozimmu_handle(), transa, transb, m, n, k,
+            *reinterpret_cast<const T *>(alpha), reinterpret_cast<const T *>(A),
+            lda, reinterpret_cast<const T *>(B), ldb,
+            *reinterpret_cast<const T *>(beta), reinterpret_cast<T *>(C), ldc);
+      } else if (Atype == CUDA_C_64F && Btype == CUDA_C_64F &&
+                 Ctype == CUDA_C_64F) {
+        using T = cuDoubleComplex;
+        cublas_status = mtk::ozimmu::dgemm_f32<T>(
+            get_global_ozimmu_handle(), transa, transb, m, n, k,
+            *reinterpret_cast<const T *>(alpha), reinterpret_cast<const T *>(A),
+            lda, reinterpret_cast<const T *>(B), ldb,
+            *reinterpret_cast<const T *>(beta), reinterpret_cast<T *>(C), ldc);
+      }
+    } else {
+      // Int8 Ozaki scheme mode
+      const auto gemm_config = mtk::ozimmu::gemm_list_t{
+          {op_cublas2oz(transa), op_cublas2oz(transb), m, n, k,
+           mtk::ozimmu::complx, compute_mode}};
+
+      int error = 0;
+      if (Atype == CUDA_R_64F) {
+        error = mtk::ozimmu::gemm(get_global_ozimmu_handle(),
+                                  op_cublas2oz(transa), op_cublas2oz(transb), m,
+                                  n, k, reinterpret_cast<const double *>(alpha),
+                                  reinterpret_cast<const double *>(A), lda,
+                                  reinterpret_cast<const double *>(B), ldb,
+                                  reinterpret_cast<const double *>(beta),
+                                  reinterpret_cast<double *>(C), ldc,
+                                  compute_mode, mtk::ozimmu::real);
+      } else if (Atype == CUDA_C_64F) {
+        error =
+            mtk::ozimmu::gemm(get_global_ozimmu_handle(), op_cublas2oz(transa),
+                              op_cublas2oz(transb), m, n, k,
+                              reinterpret_cast<const cuDoubleComplex *>(alpha),
+                              reinterpret_cast<const cuDoubleComplex *>(A), lda,
+                              reinterpret_cast<const cuDoubleComplex *>(B), ldb,
+                              reinterpret_cast<const cuDoubleComplex *>(beta),
+                              reinterpret_cast<cuDoubleComplex *>(C), ldc,
+                              compute_mode, mtk::ozimmu::complx);
+      }
+
+      if (error) {
+        cublas_status = CUBLAS_STATUS_INTERNAL_ERROR;
+      }
+
+      cublas_status = CUBLAS_STATUS_SUCCESS;
     }
 
     if (profiling_flag) {
@@ -202,11 +232,8 @@ CUBLASAPI cublasStatus_t cublasGemmEx(
           cuda_stream, &mtk::ozimmu::CULiP::print_profile_result,
           (void *)&profile_result);
     }
-    if (error) {
-      return CUBLAS_STATUS_INTERNAL_ERROR;
-    }
 
-    return CUBLAS_STATUS_SUCCESS;
+    return cublas_status;
   }
 
   cudaStream_t cuda_stream;
@@ -305,9 +332,6 @@ CUBLASAPI cublasStatus_t cublasGemmStridedBatchedEx(
       k >= (*global_ozimmu_handle)->intercept_threshold_k &&
       ((Atype == CUDA_R_64F && Btype == CUDA_R_64F && Ctype == CUDA_R_64F) ||
        (Atype == CUDA_C_64F && Btype == CUDA_C_64F && Ctype == CUDA_C_64F))) {
-    const auto gemm_config =
-        mtk::ozimmu::gemm_list_t{{op_cublas2oz(transa), op_cublas2oz(transb), m,
-                                  n, k, mtk::ozimmu::complx, compute_mode}};
 
     cudaStream_t cuda_stream;
     CUTF_CHECK_ERROR(cublasGetStream(handle, &cuda_stream));
@@ -330,33 +354,64 @@ CUBLASAPI cublasStatus_t cublasGemmStridedBatchedEx(
           (void *)&profile_result.start_timestamp);
     }
 
-    int error = 0;
-    for (int batch_id = 0; batch_id < batch_count; batch_id++) {
-      if (Atype == CUDA_R_64F) {
-        error = mtk::ozimmu::gemm(
-            get_global_ozimmu_handle(), op_cublas2oz(transa),
-            op_cublas2oz(transb), m, n, k,
-            reinterpret_cast<const double *>(alpha),
-            reinterpret_cast<const double *>(A) + strideA * batch_id, lda,
-            reinterpret_cast<const double *>(B) + strideB * batch_id, ldb,
-            reinterpret_cast<const double *>(beta),
-            reinterpret_cast<double *>(C) + strideC * batch_id, ldc,
-            compute_mode, mtk::ozimmu::real);
-      } else if (Atype == CUDA_C_64F) {
-        error = mtk::ozimmu::gemm(
-            get_global_ozimmu_handle(), op_cublas2oz(transa),
-            op_cublas2oz(transb), m, n, k,
-            reinterpret_cast<const cuDoubleComplex *>(alpha),
-            reinterpret_cast<const cuDoubleComplex *>(A) + strideA * batch_id,
-            lda,
-            reinterpret_cast<const cuDoubleComplex *>(B) + strideB * batch_id,
-            ldb, reinterpret_cast<const cuDoubleComplex *>(beta),
-            reinterpret_cast<cuDoubleComplex *>(C) + strideC * batch_id, ldc,
-            compute_mode, mtk::ozimmu::complx);
+    cublasStatus_t cublas_status;
+    if (compute_mode == mtk::ozimmu::sgemm) {
+      if (Atype == CUDA_R_64F && Btype == CUDA_R_64F && Ctype == CUDA_R_64F) {
+        using T = double;
+        cublas_status = mtk::ozimmu::dgemm_f32_batched<T>(
+            get_global_ozimmu_handle(), transa, transb, m, n, k,
+            *reinterpret_cast<const T *>(alpha), reinterpret_cast<const T *>(A),
+            lda, strideA, reinterpret_cast<const T *>(B), ldb, strideB,
+            *reinterpret_cast<const T *>(beta), reinterpret_cast<T *>(C), ldc,
+            strideC, batch_count);
+      } else if (Atype == CUDA_C_64F && Btype == CUDA_C_64F &&
+                 Ctype == CUDA_C_64F) {
+        using T = cuDoubleComplex;
+        cublas_status = mtk::ozimmu::dgemm_f32_batched<T>(
+            get_global_ozimmu_handle(), transa, transb, m, n, k,
+            *reinterpret_cast<const T *>(alpha), reinterpret_cast<const T *>(A),
+            lda, strideA, reinterpret_cast<const T *>(B), ldb, strideB,
+            *reinterpret_cast<const T *>(beta), reinterpret_cast<T *>(C), ldc,
+            strideC, batch_count);
+      }
+    } else {
+      const auto gemm_config = mtk::ozimmu::gemm_list_t{
+          {op_cublas2oz(transa), op_cublas2oz(transb), m, n, k,
+           mtk::ozimmu::complx, compute_mode}};
+
+      int error = 0;
+      for (int batch_id = 0; batch_id < batch_count; batch_id++) {
+        if (Atype == CUDA_R_64F) {
+          error = mtk::ozimmu::gemm(
+              get_global_ozimmu_handle(), op_cublas2oz(transa),
+              op_cublas2oz(transb), m, n, k,
+              reinterpret_cast<const double *>(alpha),
+              reinterpret_cast<const double *>(A) + strideA * batch_id, lda,
+              reinterpret_cast<const double *>(B) + strideB * batch_id, ldb,
+              reinterpret_cast<const double *>(beta),
+              reinterpret_cast<double *>(C) + strideC * batch_id, ldc,
+              compute_mode, mtk::ozimmu::real);
+        } else if (Atype == CUDA_C_64F) {
+          error = mtk::ozimmu::gemm(
+              get_global_ozimmu_handle(), op_cublas2oz(transa),
+              op_cublas2oz(transb), m, n, k,
+              reinterpret_cast<const cuDoubleComplex *>(alpha),
+              reinterpret_cast<const cuDoubleComplex *>(A) + strideA * batch_id,
+              lda,
+              reinterpret_cast<const cuDoubleComplex *>(B) + strideB * batch_id,
+              ldb, reinterpret_cast<const cuDoubleComplex *>(beta),
+              reinterpret_cast<cuDoubleComplex *>(C) + strideC * batch_id, ldc,
+              compute_mode, mtk::ozimmu::complx);
+        }
+        if (error) {
+          break;
+        }
       }
       if (error) {
-        break;
+        cublas_status = CUBLAS_STATUS_INTERNAL_ERROR;
       }
+
+      cublas_status = CUBLAS_STATUS_SUCCESS;
     }
 
     if (profiling_flag) {
@@ -371,11 +426,7 @@ CUBLASAPI cublasStatus_t cublasGemmStridedBatchedEx(
           (void *)&profile_result);
     }
 
-    if (error) {
-      return CUBLAS_STATUS_INTERNAL_ERROR;
-    }
-
-    return CUBLAS_STATUS_SUCCESS;
+    return cublas_status;
   }
 
   cudaStream_t cuda_stream;

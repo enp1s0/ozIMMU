@@ -1,4 +1,5 @@
 #pragma once
+#include <cstdint>
 #include <string>
 #include <tuple>
 #include <vector>
@@ -67,6 +68,9 @@ using gemm_list_t = std::vector<gemm_params_t>;
 // ReturnA: memory size if reallocated; otherwise, zero
 std::size_t reallocate_working_memory(mtk::ozimmu::handle_t handle,
                                       const gemm_list_t gemm_list);
+
+std::size_t reallocate_working_memory(mtk::ozimmu::handle_t handle,
+                                      const std::size_t size_in_byte);
 
 int gemm(mtk::ozimmu::handle_t handle, const mtk::ozimmu::operation_t op_A,
          const mtk::ozimmu::operation_t op_B, const std::size_t m,
