@@ -28,12 +28,14 @@ add_library(${lib_name} SHARED
   ${SRCDIR}/split.cu
   ${SRCDIR}/gemm.cu
   ${SRCDIR}/cublas.cu
+  ${SRCDIR}/cublas_helper.cu
   ${SRCDIR}/culip.cu
   ${HEADERS}
 )
 
 target_include_directories(${lib_name} PUBLIC ${INCDIR})
 target_include_directories(${lib_name} PUBLIC ${SRCDIR}/cutf/include)
+set(CMAKE_CUDA_USE_RESPONSE_FILE_FOR_INCLUDES 0)
 
 target_link_libraries(${lib_name} PRIVATE
   cuda
