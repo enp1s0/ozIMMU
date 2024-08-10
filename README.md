@@ -31,6 +31,7 @@ The supported compute modes are [here](#supported-compute-mode).
 | Mode          | Tensor Core type | Num splits |                         |
 |:--------------|:-----------------|:-----------|:------------------------|
 |dgemm          | --               | --         | Disable hijacking       |
+|sgemm          | --               | --         | Use SGEMM internally    |
 |fp64_int8_3    | Int8 TC          | 3          |                         |
 |fp64_int8_4    | Int8 TC          | 4          |                         |
 |fp64_int8_5    | Int8 TC          | 5          |                         |
