@@ -2,8 +2,16 @@ cmake_minimum_required(VERSION 3.18)
 project(ozimmu LANGUAGES CXX CUDA)
 
 set(BUILD_TEST OFF)
+set(AUTO_SUBMODULE_UPDATE ON)
 
 find_package(CUDAToolkit 12.1 REQUIRED)
+
+# Update git submodules
+if (${AUTO_SUBMODULE_UPDATE})
+  execute_process(
+    COMMAND git submodule update --init --recursive
+  )
+endif()
 
 # CUDA/CXX
 foreach(lang CXX CUDA)
