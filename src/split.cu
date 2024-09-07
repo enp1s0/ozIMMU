@@ -157,10 +157,14 @@ __device__ void cut_int8_core(std::int8_t *const out_ptr, const std::size_t inc,
                               const unsigned num_split,
                               const unsigned mantissa_length) {
   const std::uint8_t sign_flag = a > 0;
+  // When the input number is not normalized, don't set the implicit one bit.
+  const std::uint64_t implict_one_bit =
+      cutf::experimental::fp::mask_exponent(a) ? 1lu : 0lu;
   const auto mantissa =
       static_cast<MANTISSA_T>(
           cutf::experimental::fp::mask_mantissa(a) |
-          (1lu << cutf::experimental::fp::get_mantissa_size<INPUT_T>()))
+          (implict_one_bit
+           << cutf::experimental::fp::get_mantissa_size<INPUT_T>()))
       << ((sizeof(MANTISSA_T) - sizeof(INPUT_T)) * 8 +
           cutf::experimental::fp::get_exponent_size<INPUT_T>());
   const auto mantissa_shift_offset =
