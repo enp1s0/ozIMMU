@@ -9,7 +9,7 @@ precommit:
 unittest:
   tags:
     - cuda
-  image: nvidia/cuda:12.5.1-devel-ubuntu22.04
+  image: nvidia/cuda:12.8.0-devel-ubuntu24.04
   before_script:
     - apt update && apt install -y --no-install-recommends build-essential wget lsb-release software-properties-common git libnvidia-ml-dev
     - wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc 2>/dev/null | gpg --dearmor - | tee /etc/apt/trusted.gpg.d/kitware.gpg >/dev/null
