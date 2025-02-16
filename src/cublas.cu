@@ -89,15 +89,13 @@ std::string cublas_library_name = "libcublas.so";
 
 cublasStatus_t mtk::ozimmu::cublasCreate_org(cublasHandle_t *handle_ptr) {
   cublasStatus_t (*func_ptr)(cublasHandle_t *);
-  *(void **)(&func_ptr) =
-      ozIMMU_get_function_pointer(cublas_library_name, "cublasCreate_v2");
+  *(void **)(&func_ptr) = ozIMMU_get_function_pointer("cublasCreate_v2");
   return (*func_ptr)(handle_ptr);
 }
 
 cublasStatus_t mtk::ozimmu::cublasDestroy_org(cublasHandle_t cublas_handle) {
   cublasStatus_t (*func_ptr)(cublasHandle_t);
-  *(void **)(&func_ptr) =
-      ozIMMU_get_function_pointer(cublas_library_name, "cublasDestroy_v2");
+  *(void **)(&func_ptr) = ozIMMU_get_function_pointer("cublasDestroy_v2");
   return (*func_ptr)(cublas_handle);
 }
 
@@ -247,8 +245,7 @@ CUBLASAPI cublasStatus_t cublasGemmEx(
       const void *, const void *, cudaDataType_t, int, const void *,
       cudaDataType_t, int, const void *, void *, cudaDataType_t, int,
       cublasComputeType_t, cublasGemmAlgo_t);
-  *(void **)(&func_ptr) =
-      ozIMMU_get_function_pointer(cublas_library_name.c_str(), __func__);
+  *(void **)(&func_ptr) = ozIMMU_get_function_pointer(__func__);
 
   if (profiling_flag) {
     snprintf(profile_result.function_name,
@@ -441,8 +438,7 @@ CUBLASAPI cublasStatus_t cublasGemmStridedBatchedEx(
       const void *, cudaDataType_t, int, long long int, const void *, void *,
       cudaDataType_t, int, long long int, int, cublasComputeType_t,
       cublasGemmAlgo_t);
-  *(void **)(&func_ptr) =
-      ozIMMU_get_function_pointer(cublas_library_name.c_str(), __func__);
+  *(void **)(&func_ptr) = ozIMMU_get_function_pointer(__func__);
 
   if (profiling_flag) {
     snprintf(profile_result.function_name,

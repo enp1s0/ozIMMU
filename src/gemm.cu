@@ -253,8 +253,8 @@ cublasStatus_t cublasGemmEx_org(cublasHandle_t handle, cublasOperation_t transa,
       const void *, const void *, cudaDataType_t, int, const void *,
       cudaDataType_t, int, const void *, void *, cudaDataType_t, int,
       cublasComputeType_t, cublasGemmAlgo_t);
-  *(void **)(&func_ptr) = ozIMMU_get_function_pointer(
-      cublas_library_name.c_str(), cublas_function_name.c_str());
+  *(void **)(&func_ptr) =
+      ozIMMU_get_function_pointer(cublas_function_name.c_str());
 
   const auto res =
       (*func_ptr)(handle, transa, transb, m, n, k, alpha, A, Atype, lda, B,
