@@ -114,21 +114,24 @@ inline void ozIMMU_error(const std::string str) {
       1);
 }
 
-inline void *ozIMMU_get_function_pointer(const std::string library_name,
-                                         const std::string function_name) {
-
-  // Open the library
-  const auto lib_ptr = dlopen(library_name.c_str(), RTLD_NOW);
-  if (lib_ptr == nullptr) {
-    ozIMMU_error("Failed to load " + library_name +
-                 ". Default rule will be used.");
-    return nullptr;
-  }
-
+inline void *ozIMMU_get_function_pointer(const std::string function_name,
+                                         const std::string library_name = "") {
   // Get function pointer
-  void *function_ptr = dlsym(lib_ptr, function_name.c_str());
-  if (function_ptr == NULL) {
-    ozIMMU_log(
+  void *function_ptr = nullptr;
+  if (library_name != "") {
+    // Open the library
+    const auto lib_ptr = dlopen(library_name.c_str(), RTLD_NOW);
+    if (lib_ptr == nullptr) {
+      ozIMMU_error("Failed to load " + library_name + ".");
+      return nullptr;
+    }
+
+    function_ptr = dlsym(lib_ptr, function_name.c_str());
+  } else {
+    function_ptr = dlsym(RTLD_NEXT, function_name.c_str());
+  }
+  if (function_ptr == nullptr) {
+    ozIMMU_error(
         "Failed to load a function " + function_name +
         " during selecting hijacking function. Default rule will be used.");
     return nullptr;

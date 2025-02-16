@@ -21,7 +21,7 @@ foreach(lang CXX CUDA)
 endforeach()
 
 # CUDA (1/2)
-SET(CMAKE_CUDA_ARCHITECTURES 90 89 80 86 75)
+SET(CMAKE_CUDA_ARCHITECTURES 90 89 86 80)
 
 # Directories
 set(INCDIR include)
@@ -47,6 +47,7 @@ set(CMAKE_CUDA_USE_RESPONSE_FILE_FOR_INCLUDES 0)
 
 target_link_libraries(${lib_name} PRIVATE
   cuda
+  cublas
 )
 
 set_target_properties(${lib_name} PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
